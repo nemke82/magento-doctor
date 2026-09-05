@@ -1,0 +1,34 @@
+[package]
+name = "mdoctor-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Command-line interface for Magento Doctor"
+
+[[bin]]
+name = "mdoctor"
+path = "src/main.rs"
+
+[dependencies]
+mdoctor-core.workspace = true
+mdoctor-knowledge.workspace = true
+mdoctor-php.workspace = true
+mdoctor-magento.workspace = true
+mdoctor-db.workspace = true
+mdoctor-runtime.workspace = true
+mdoctor-rules.workspace = true
+mdoctor-report.workspace = true
+
+clap.workspace = true
+tokio.workspace = true
+colored.workspace = true
+comfy-table.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true

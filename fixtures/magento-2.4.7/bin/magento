@@ -1,0 +1,6 @@
+#!/usr/bin/env php
+<?php
+/**
+ * Magento CLI mock fixture
+ */
+echo "Magento CLI version 2.4.7-p3\n";

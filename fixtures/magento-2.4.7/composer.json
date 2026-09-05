@@ -1,0 +1,11 @@
+{
+    "name": "example/magento-store",
+    "description": "Example Production Magento Store",
+    "type": "project",
+    "version": "1.0.0",
+    "require": {
+        "magento/product-community-edition": "2.4.7-p3",
+        "vendor/feed": "1.2.0",
+        "vendor/payment": "2.0.1"
+    }
+}

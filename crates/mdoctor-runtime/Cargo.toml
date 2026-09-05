@@ -1,0 +1,16 @@
+[package]
+name = "mdoctor-runtime"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "PHP runtime, OPcache, Redis, OpenSearch, and filesystem inspector"
+
+[dependencies]
+mdoctor-core.workspace = true
+mdoctor-knowledge.workspace = true
+serde.workspace = true
+walkdir.workspace = true
+thiserror.workspace = true
+tracing.workspace = true

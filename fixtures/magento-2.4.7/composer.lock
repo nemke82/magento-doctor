@@ -1,0 +1,23 @@
+{
+    "_readme": [
+        "This is an auto-generated mock composer.lock for tests"
+    ],
+    "content-hash": "abcdef1234567890",
+    "packages": [
+        {
+            "name": "magento/product-community-edition",
+            "version": "2.4.7-p3",
+            "type": "metapackage"
+        },
+        {
+            "name": "vendor/feed",
+            "version": "1.2.0",
+            "type": "magento2-module"
+        },
+        {
+            "name": "vendor/payment",
+            "version": "2.0.1",
+            "type": "magento2-module"
+        }
+    ]
+}

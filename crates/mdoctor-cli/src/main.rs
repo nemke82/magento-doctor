@@ -1,0 +1,598 @@
+//! CLI entry point for Magento Doctor (mdoctor).
+
+use std::path::{Path, PathBuf};
+use std::process::ExitCode;
+
+use clap::{Parser, Subcommand, ValueEnum};
+use colored::*;
+use comfy_table::presets::UTF8_FULL;
+use comfy_table::{Cell, Color, ContentArrangement, Table};
+use mdoctor_core::{
+    DiagnosticSnapshot, HealthScore, MagentoInstallation, SafetyLevel, ScanBudget, Severity,
+    CALVER_VERSION,
+};
+use mdoctor_db::inspect_live_database;
+use mdoctor_magento::{collect_installation, discover_magento_root};
+use mdoctor_report::{
+    render_json_report, render_markdown_report, render_sarif_report, render_terminal_report,
+};
+use mdoctor_rules::{get_rule_explanation, CrossAnalysisEngine};
+
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+enum OutputFormat {
+    Text,
+    Json,
+    Markdown,
+    Sarif,
+}
+
+#[derive(Parser)]
+#[command(
+    name = "mdoctor",
+    version = CALVER_VERSION,
+    about = "Deep diagnostics, static analysis and performance forensics for Magento 2"
+)]
+struct Cli {
+    #[arg(short, long, global = true, help = "Path to Magento root directory")]
+    root: Option<PathBuf>,
+
+    #[arg(
+        short,
+        long,
+        action = clap::ArgAction::Count,
+        global = true,
+        help = "Verbosity level (-v, -vv)"
+    )]
+    verbose: u8,
+
+    #[command(subcommand)]
+    command: Option<Commands>,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Run full comprehensive scan across code, configuration, database, and cron
+    Scan {
+        #[arg(long, help = "Run offline without connecting to live MySQL or network")]
+        offline: bool,
+
+        #[arg(long, help = "Enable deeper inspections with moderate resource safety")]
+        deep: bool,
+
+        #[arg(long, default_value = "60", help = "Time budget in seconds")]
+        budget: u64,
+
+        #[arg(short, long, value_enum, default_value = "text", help = "Report format")]
+        format: OutputFormat,
+    },
+
+    /// Run quick operational health check
+    Doctor,
+
+    /// List all installed modules with classification and footprint
+    Modules {
+        #[arg(short, long, help = "Filter by vendor or module name")]
+        filter: Option<String>,
+    },
+
+    /// Deep inspection of a specific module's integration footprint
+    Module {
+        #[arg(help = "Module name (e.g. Vendor_Module or Magento_Catalog)")]
+        name: String,
+    },
+
+    /// Cron forensics, scheduling intervals, and overlap analysis
+    Cron,
+
+    /// Indexer status and MView changelog analysis
+    Indexers,
+
+    /// Database schema reconciliation, missing/redundant indexes, and table sizes
+    Db,
+
+    /// In-depth explanation, impact, and manual verification steps for a rule ID
+    Explain {
+        #[arg(help = "Rule ID (e.g. MD-CRON-010, MD-PLG-001, MD-PERF-021)")]
+        rule_id: String,
+    },
+
+    /// Create or analyze diagnostic snapshots
+    Snapshot {
+        #[command(subcommand)]
+        action: SnapshotAction,
+    },
+
+    /// Identify likely performance bottlenecks
+    Why {
+        #[arg(help = "Target issue (e.g. 'slow')")]
+        target: Option<String>,
+    },
+}
+
+#[derive(Subcommand)]
+enum SnapshotAction {
+    /// Create a sanitized diagnostic snapshot file
+    Create {
+        #[arg(short, long, help = "Output file path (default: <store>-<timestamp>.mdoctor)")]
+        output: Option<PathBuf>,
+    },
+    /// Analyze an exported snapshot file offline
+    Analyze {
+        #[arg(help = "Path to .mdoctor snapshot file")]
+        file: PathBuf,
+    },
+}
+
+#[tokio::main]
+async fn main() -> ExitCode {
+    let cli = Cli::parse();
+
+    // Setup logging
+    if cli.verbose > 0 {
+        tracing_subscriber::fmt::init();
+    }
+
+    // Default to 'scan' if no subcommand provided
+    let command = cli.command.unwrap_or(Commands::Scan {
+        offline: false,
+        deep: false,
+        budget: 60,
+        format: OutputFormat::Text,
+    });
+
+    match command {
+        Commands::Explain { rule_id } => {
+            handle_explain(&rule_id);
+            ExitCode::from(0)
+        }
+        Commands::Snapshot { action } => match action {
+            SnapshotAction::Create { output } => {
+                handle_snapshot_create(cli.root.as_deref(), output).await
+            }
+            SnapshotAction::Analyze { file } => handle_snapshot_analyze(&file),
+        },
+        Commands::Scan {
+            offline,
+            deep,
+            budget,
+            format,
+        } => handle_scan(cli.root.as_deref(), offline, deep, budget, format).await,
+        Commands::Doctor => handle_doctor(cli.root.as_deref()).await,
+        Commands::Modules { filter } => handle_modules(cli.root.as_deref(), filter.as_deref()).await,
+        Commands::Module { name } => handle_module(cli.root.as_deref(), &name).await,
+        Commands::Cron => handle_cron(cli.root.as_deref()).await,
+        Commands::Indexers => handle_indexers(cli.root.as_deref()).await,
+        Commands::Db => handle_db(cli.root.as_deref()).await,
+        Commands::Why { target } => handle_why(cli.root.as_deref(), target.as_deref()).await,
+    }
+}
+
+async fn build_installation_model(
+    custom_root: Option<&Path>,
+    offline: bool,
+    deep: bool,
+    budget_secs: u64,
+) -> Result<MagentoInstallation, String> {
+    let root = discover_magento_root(custom_root, None)
+        .map_err(|e| format!("Discovery error: {}", e))?;
+
+    let mut budget = if deep {
+        ScanBudget::deep()
+    } else {
+        ScanBudget::default()
+    };
+    budget.max_seconds = budget_secs;
+
+    let mut installation = collect_installation(&root);
+
+    // If live MySQL is allowed and not in offline mode, attempt connection
+    if !offline && budget.is_allowed(SafetyLevel::Low) {
+        if let (Some(host), Some(db), Some(user)) = (
+            &installation.env_config.db_host,
+            &installation.env_config.db_name,
+            &installation.env_config.db_user,
+        ) {
+            let env_php_path = root.join("app/etc/env.php");
+            let parsed_env = mdoctor_magento::parse_env_php(&env_php_path);
+            let raw_pass = parsed_env.raw_db_password.as_deref();
+
+            if let Ok(db_metrics) =
+                inspect_live_database(host, db, user, raw_pass, budget.max_db_seconds).await
+            {
+                installation.database_metrics = db_metrics;
+            }
+        }
+    }
+
+    Ok(installation)
+}
+
+async fn handle_scan(
+    root_opt: Option<&Path>,
+    offline: bool,
+    deep: bool,
+    budget: u64,
+    format: OutputFormat,
+) -> ExitCode {
+    let installation = match build_installation_model(root_opt, offline, deep, budget).await {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!("{}: {}", "Error".red().bold(), e);
+            return ExitCode::from(3);
+        }
+    };
+
+    let findings = CrossAnalysisEngine::analyze(&installation);
+    let health = HealthScore::calculate(&findings);
+
+    let output = match format {
+        OutputFormat::Text => render_terminal_report(&installation, &findings, &health),
+        OutputFormat::Json => render_json_report(&installation, &findings, &health)
+            .unwrap_or_else(|e| format!("JSON error: {}", e)),
+        OutputFormat::Markdown => render_markdown_report(&installation, &findings, &health),
+        OutputFormat::Sarif => render_sarif_report(&findings),
+    };
+
+    println!("{}", output);
+
+    // Determine exit code
+    if findings.iter().any(|f| f.severity == Severity::Critical) {
+        ExitCode::from(2)
+    } else if findings.iter().any(|f| f.severity == Severity::Warning) {
+        ExitCode::from(1)
+    } else {
+        ExitCode::from(0)
+    }
+}
+
+async fn handle_doctor(root_opt: Option<&Path>) -> ExitCode {
+    let installation = match build_installation_model(root_opt, false, false, 30).await {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!("{}: {}", "Error".red().bold(), e);
+            return ExitCode::from(3);
+        }
+    };
+
+    let findings = CrossAnalysisEngine::analyze(&installation);
+    let health = HealthScore::calculate(&findings);
+
+    println!("\n{} - Operational Health Check\n", CALVER_VERSION.cyan().bold());
+    println!("Overall Health: {} / 100", health.overall);
+    println!("Critical: {}  Warning: {}  Info: {}\n", health.critical_count, health.warning_count, health.info_count);
+
+    if health.critical_count > 0 {
+        println!("{}", "CRITICAL CONCERNS:".red().bold());
+        for f in findings.iter().filter(|f| f.severity == Severity::Critical) {
+            println!("  • [{}] {}", f.rule_id, f.title.bold());
+            println!("    {}", f.recommendation);
+        }
+    } else {
+        println!("{}", "✓ No critical operational blockages detected.".green().bold());
+    }
+
+    ExitCode::from(0)
+}
+
+async fn handle_modules(root_opt: Option<&Path>, filter: Option<&str>) -> ExitCode {
+    let installation = match build_installation_model(root_opt, true, false, 30).await {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!("{}: {}", "Error".red().bold(), e);
+            return ExitCode::from(3);
+        }
+    };
+
+    let mut table = Table::new();
+    table
+        .load_preset(UTF8_FULL)
+        .set_content_arrangement(ContentArrangement::Dynamic)
+        .set_header(vec![
+            Cell::new("Module").fg(Color::Cyan),
+            Cell::new("Classification").fg(Color::Cyan),
+            Cell::new("Status").fg(Color::Cyan),
+            Cell::new("Plugins").fg(Color::Cyan),
+            Cell::new("Prefs").fg(Color::Cyan),
+            Cell::new("Observers").fg(Color::Cyan),
+            Cell::new("Crons").fg(Color::Cyan),
+            Cell::new("Tables").fg(Color::Cyan),
+        ]);
+
+    for m in &installation.modules {
+        if let Some(filt) = filter {
+            if !m.name.to_lowercase().contains(&filt.to_lowercase()) {
+                continue;
+            }
+        }
+
+        let status_cell = if m.is_enabled {
+            Cell::new("enabled").fg(Color::Green)
+        } else {
+            Cell::new("disabled").fg(Color::DarkGrey)
+        };
+
+        table.add_row(vec![
+            Cell::new(&m.name),
+            Cell::new(format!("{}", m.classification)),
+            status_cell,
+            Cell::new(m.footprint.plugins_count),
+            Cell::new(m.footprint.preferences_count),
+            Cell::new(m.footprint.observers_count),
+            Cell::new(m.footprint.cron_jobs_count),
+            Cell::new(m.footprint.db_tables_count),
+        ]);
+    }
+
+    println!("\nInstalled Modules Inventory ({})\n", installation.modules.len());
+    println!("{}\n", table);
+    ExitCode::from(0)
+}
+
+async fn handle_module(root_opt: Option<&Path>, name: &str) -> ExitCode {
+    let installation = match build_installation_model(root_opt, true, false, 30).await {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!("{}: {}", "Error".red().bold(), e);
+            return ExitCode::from(3);
+        }
+    };
+
+    let module = match installation.find_module(name) {
+        Some(m) => m,
+        None => {
+            eprintln!("{}: Module '{}' not found in this installation.", "Error".red().bold(), name);
+            return ExitCode::from(1);
+        }
+    };
+
+    println!("\n{}\n", module.name.bold().cyan());
+    println!("Status: {}", if module.is_enabled { "enabled".green() } else { "disabled".red() });
+    if let Some(pkg) = &module.package_name {
+        println!("Package: {}", pkg);
+    }
+    if let Some(ver) = &module.version {
+        println!("Version: {}", ver);
+    }
+    println!("Classification: {}", module.classification);
+    println!("Location: {}", module.path.display());
+
+    if !module.sequence.is_empty() {
+        println!("\nDependencies (sequence):");
+        for dep in &module.sequence {
+            println!("  • {}", dep);
+        }
+    }
+
+    println!("\nMagento Integration Footprint:");
+    println!("  Plugins:      {}", module.footprint.plugins_count);
+    println!("  Preferences:  {}", module.footprint.preferences_count);
+    println!("  Observers:    {}", module.footprint.observers_count);
+    println!("  Cron jobs:    {}", module.footprint.cron_jobs_count);
+    println!("  DB tables:    {}", module.footprint.db_tables_count);
+    println!("  DB columns:   {}", module.footprint.db_columns_count);
+    println!("  Indexes:      {}", module.footprint.db_indexes_count);
+
+    ExitCode::from(0)
+}
+
+async fn handle_cron(root_opt: Option<&Path>) -> ExitCode {
+    let installation = match build_installation_model(root_opt, false, false, 30).await {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!("{}: {}", "Error".red().bold(), e);
+            return ExitCode::from(3);
+        }
+    };
+
+    println!("\n{} - Cron Forensics\n", CALVER_VERSION.cyan().bold());
+
+    let summary = &installation.database_metrics.cron_schedule;
+    if summary.total_rows > 0 {
+        println!("cron_schedule state: {} rows ({} pending, {} running, {} missed)",
+            summary.total_rows, summary.pending_rows, summary.running_rows, summary.missed_rows);
+    }
+
+    let mut table = Table::new();
+    table
+        .load_preset(UTF8_FULL)
+        .set_content_arrangement(ContentArrangement::Dynamic)
+        .set_header(vec![
+            Cell::new("Job Code").fg(Color::Cyan),
+            Cell::new("Module").fg(Color::Cyan),
+            Cell::new("Schedule").fg(Color::Cyan),
+            Cell::new("Interval").fg(Color::Cyan),
+            Cell::new("Instance Class").fg(Color::Cyan),
+        ]);
+
+    for job in &installation.cron_jobs {
+        let interval_str = job
+            .interval_seconds
+            .map(|s| format!("{}s", s))
+            .unwrap_or_else(|| "custom".to_string());
+
+        table.add_row(vec![
+            Cell::new(&job.name),
+            Cell::new(&job.module),
+            Cell::new(job.schedule.as_deref().unwrap_or("none")),
+            Cell::new(interval_str),
+            Cell::new(&job.instance),
+        ]);
+    }
+
+    println!("{}\n", table);
+    ExitCode::from(0)
+}
+
+async fn handle_indexers(root_opt: Option<&Path>) -> ExitCode {
+    let installation = match build_installation_model(root_opt, false, false, 30).await {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!("{}: {}", "Error".red().bold(), e);
+            return ExitCode::from(3);
+        }
+    };
+
+    println!("\n{} - Indexers Doctor\n", CALVER_VERSION.cyan().bold());
+
+    let mut table = Table::new();
+    table
+        .load_preset(UTF8_FULL)
+        .set_content_arrangement(ContentArrangement::Dynamic)
+        .set_header(vec![
+            Cell::new("Indexer ID").fg(Color::Cyan),
+            Cell::new("View ID").fg(Color::Cyan),
+            Cell::new("Title").fg(Color::Cyan),
+            Cell::new("Module").fg(Color::Cyan),
+        ]);
+
+    for idx in &installation.indexers {
+        table.add_row(vec![
+            Cell::new(&idx.id),
+            Cell::new(&idx.view_id),
+            Cell::new(&idx.title),
+            Cell::new(&idx.module),
+        ]);
+    }
+
+    println!("{}\n", table);
+    ExitCode::from(0)
+}
+
+async fn handle_db(root_opt: Option<&Path>) -> ExitCode {
+    let installation = match build_installation_model(root_opt, false, false, 30).await {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!("{}: {}", "Error".red().bold(), e);
+            return ExitCode::from(3);
+        }
+    };
+
+    println!("\n{} - Database Forensics\n", CALVER_VERSION.cyan().bold());
+    println!("Declared tables: {}", installation.declared_schema.tables.len());
+
+    let diff = mdoctor_db::reconcile_schemas(&installation.declared_schema, &installation.actual_schema);
+    println!("Missing declared indexes: {}", diff.missing_indexes.len());
+    println!("Orphan tables: {}", diff.orphan_tables.len());
+
+    if !diff.missing_indexes.is_empty() {
+        println!("\n{}", "Missing declared indexes:".yellow().bold());
+        for (t, idx) in &diff.missing_indexes {
+            println!("  • {}.{}", t, idx);
+        }
+    }
+
+    if !installation.database_metrics.table_sizes.is_empty() {
+        println!("\n{}", "Top tables by storage size:".bold());
+        for t in installation.database_metrics.table_sizes.iter().take(10) {
+            let mb = t.total_bytes / (1024 * 1024);
+            println!("  • {:<35} {:>10} rows   {:>6} MB", t.table_name, t.row_count, mb);
+        }
+    }
+
+    ExitCode::from(0)
+}
+
+fn handle_explain(rule_id: &str) {
+    if let Some(exp) = get_rule_explanation(rule_id) {
+        println!("\n{} [{}]\n", exp.title.bold().cyan(), exp.rule_id);
+        println!("{}\n{}\n", "WHAT IS THIS?".bold().underline(), exp.what);
+        println!("{}\n{}\n", "WHY DOES IT MATTER?".bold().underline(), exp.why_affected);
+        println!("{}\n{}\n", "HOW DETECTION WORKS".bold().underline(), exp.detection_mechanism);
+        println!("{}\n{}\n", "POTENTIAL FALSE POSITIVES".bold().underline(), exp.false_positives);
+        println!("{}\n{}\n", "MANUAL VERIFICATION".bold().underline(), exp.verification.cyan());
+        println!("{}\n{}\n", "REMEDIATION".bold().underline(), exp.remediation.green());
+    } else {
+        eprintln!("{}: No detailed explanation found for rule ID '{}'.", "Error".red().bold(), rule_id);
+    }
+}
+
+async fn handle_snapshot_create(custom_root: Option<&Path>, output_path: Option<PathBuf>) -> ExitCode {
+    let installation = match build_installation_model(custom_root, false, false, 60).await {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!("{}: {}", "Error".red().bold(), e);
+            return ExitCode::from(3);
+        }
+    };
+
+    let findings = CrossAnalysisEngine::analyze(&installation);
+    let health = HealthScore::calculate(&findings);
+
+    let snapshot = DiagnosticSnapshot::new(installation, findings, health);
+    let json = match snapshot.to_json() {
+        Ok(j) => j,
+        Err(e) => {
+            eprintln!("{}: Failed to serialize snapshot: {}", "Error".red().bold(), e);
+            return ExitCode::from(3);
+        }
+    };
+
+    let target_file = output_path.unwrap_or_else(|| {
+        let ts = chrono::Utc::now().format("%Y%m%d_%H%M%S");
+        PathBuf::from(format!("mdoctor-snapshot-{}.mdoctor", ts))
+    });
+
+    if let Err(e) = std::fs::write(&target_file, json) {
+        eprintln!("{}: Failed to write snapshot to '{}': {}", "Error".red().bold(), target_file.display(), e);
+        return ExitCode::from(3);
+    }
+
+    println!("\n{} Diagnostic snapshot saved safely to '{}'.", "✓".green().bold(), target_file.display().to_string().cyan());
+    println!("Secrets were strictly sanitized. This file is safe to attach to GitHub or support tickets.\n");
+    ExitCode::from(0)
+}
+
+fn handle_snapshot_analyze(file: &Path) -> ExitCode {
+    let content = match std::fs::read_to_string(file) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("{}: Cannot read snapshot file '{}': {}", "Error".red().bold(), file.display(), e);
+            return ExitCode::from(3);
+        }
+    };
+
+    let snapshot = match DiagnosticSnapshot::from_json(&content) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("{}: Invalid snapshot JSON: {}", "Error".red().bold(), e);
+            return ExitCode::from(3);
+        }
+    };
+
+    println!("\nAnalyzing Snapshot created at {}", snapshot.created_at);
+    let report = render_terminal_report(&snapshot.installation, &snapshot.findings, &snapshot.health_score);
+    println!("{}", report);
+    ExitCode::from(0)
+}
+
+async fn handle_why(root_opt: Option<&Path>, _target: Option<&str>) -> ExitCode {
+    let installation = match build_installation_model(root_opt, false, false, 60).await {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!("{}: {}", "Error".red().bold(), e);
+            return ExitCode::from(3);
+        }
+    };
+
+    let findings = CrossAnalysisEngine::analyze(&installation);
+
+    println!("\n{} - Targeted Bottleneck Triage\n", CALVER_VERSION.cyan().bold());
+    println!("Likely Performance Contributors:\n");
+
+    let perf_findings: Vec<_> = findings
+        .iter()
+        .filter(|f| f.severity == Severity::Critical || f.severity == Severity::Warning)
+        .collect();
+
+    if perf_findings.is_empty() {
+        println!("{}", "No critical performance bottlenecks identified!".green().bold());
+    } else {
+        for (i, f) in perf_findings.iter().enumerate() {
+            println!("{}. {:<40} {} confidence", i + 1, f.title.bold(), format!("{}", f.confidence).yellow());
+            println!("   Impact: {}", f.impact);
+            println!("   Fix:    {}\n", f.recommendation.cyan());
+        }
+    }
+
+    ExitCode::from(0)
+}

@@ -1,0 +1,55 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/mdoctor-core",
+    "crates/mdoctor-knowledge",
+    "crates/mdoctor-php",
+    "crates/mdoctor-magento",
+    "crates/mdoctor-db",
+    "crates/mdoctor-runtime",
+    "crates/mdoctor-rules",
+    "crates/mdoctor-report",
+    "crates/mdoctor-cli",
+]
+
+[workspace.package]
+version = "2026.8.26"
+edition = "2021"
+authors = ["nemke82 <nemke82@users.noreply.github.com>", "Magento Doctor Contributors"]
+license = "MIT"
+repository = "https://github.com/nemke82/magento-doctor"
+homepage = "https://github.com/nemke82/magento-doctor"
+description = "Deep diagnostics, static analysis and performance forensics for Magento 2"
+
+[workspace.dependencies]
+mdoctor-core = { path = "crates/mdoctor-core" }
+mdoctor-knowledge = { path = "crates/mdoctor-knowledge" }
+mdoctor-php = { path = "crates/mdoctor-php" }
+mdoctor-magento = { path = "crates/mdoctor-magento" }
+mdoctor-db = { path = "crates/mdoctor-db" }
+mdoctor-runtime = { path = "crates/mdoctor-runtime" }
+mdoctor-rules = { path = "crates/mdoctor-rules" }
+mdoctor-report = { path = "crates/mdoctor-report" }
+
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+thiserror = "2.0"
+anyhow = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+clap = { version = "4.5", features = ["derive", "cargo"] }
+chrono = { version = "0.4", features = ["serde"] }
+colored = "3.1"
+comfy-table = "7.1"
+walkdir = "2.5"
+regex = "1.11"
+sha2 = "0.10"
+hex = "0.4"
+roxmltree = "0.21"
+tree-sitter = "0.25"
+tree-sitter-php = "0.24"
+petgraph = { version = "0.8", features = ["serde-1"] }
+mysql_async = { version = "0.37", default-features = true }
+tokio = { version = "1.43", features = ["full"] }
+rayon = "1.10"

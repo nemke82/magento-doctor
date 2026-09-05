@@ -1,0 +1,17 @@
+[package]
+name = "mdoctor-db"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Database schema reconciliation, index optimization, query fingerprinting, and MySQL live inspection"
+
+[dependencies]
+mdoctor-core.workspace = true
+mysql_async.workspace = true
+tokio.workspace = true
+regex.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+tracing.workspace = true

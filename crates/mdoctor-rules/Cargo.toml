@@ -1,0 +1,21 @@
+[package]
+name = "mdoctor-rules"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Cross-analysis correlation engine and rule implementations for Magento Doctor"
+
+[dependencies]
+mdoctor-core.workspace = true
+mdoctor-knowledge.workspace = true
+mdoctor-php.workspace = true
+mdoctor-magento.workspace = true
+mdoctor-db.workspace = true
+mdoctor-runtime.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+walkdir.workspace = true
+rayon.workspace = true

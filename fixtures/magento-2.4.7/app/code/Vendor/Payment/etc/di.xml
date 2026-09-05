@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <type name="Magento\Quote\Model\QuoteManagement">
+        <plugin name="vendor_payment_quote_around" type="Vendor\Payment\Plugin\QuoteManagement" sortOrder="10" />
+    </type>
+</config>

@@ -1,0 +1,18 @@
+[package]
+name = "mdoctor-php"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Tree-sitter PHP AST static analyzer for Magento anti-patterns and performance forensics"
+
+[dependencies]
+mdoctor-core.workspace = true
+tree-sitter.workspace = true
+tree-sitter-php.workspace = true
+walkdir.workspace = true
+rayon.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+serde.workspace = true
