@@ -17,6 +17,11 @@
   🌐 <strong>Interactive Web Showcase & Rule Explorer</strong>: <a href="https://nemke82.github.io/magento-doctor/">https://nemke82.github.io/magento-doctor/</a>
 </p>
 
+> [!TIP]
+> **Live Interactive Documentation & Forensics Simulator**:  
+> Explore live terminal command outputs, search the diagnostic rule catalog, and view the certified stack matrix on our GitHub Pages site:  
+> 👉 **[https://nemke82.github.io/magento-doctor/](https://nemke82.github.io/magento-doctor/)**
+
 ---
 
 Magento Doctor is much more than a health checker. Rather than dumping 150 disconnected warnings, Magento Doctor understands how a Magento installation is assembled and correlates code, configuration, database schema, runtime state, logs, cron/indexer behavior, and third-party modules into an **engineer-grade diagnosis**.
@@ -286,6 +291,15 @@ Magento Doctor ships with built-in version matrices, compatibility rules, and ho
 - **Database**: MariaDB `10.4`, `10.6`, `10.11`, `11.x` (11.0–11.4 LTS) & MySQL `8.0`, `8.4 LTS`, `9.x` (latest)
 - **Search**: OpenSearch `1.2`, `2.5`, `2.12`, `2.19`, and `3.0` (actively supported)
 - **Cache**: Redis `6.2`, `7.0`, `7.2`, `8.0` & Valkey `7.2`, `8.0` (actively supported drop-in replacement)
+
+---
+
+## Quick Links & Resources
+
+- 🌐 **Interactive Documentation & Showcase**: [https://nemke82.github.io/magento-doctor/](https://nemke82.github.io/magento-doctor/)
+- 💻 **Terminal Forensics Simulator**: [https://nemke82.github.io/magento-doctor/#simulator](https://nemke82.github.io/magento-doctor/#simulator)
+- 📋 **Searchable Diagnostic Rule Catalog**: [https://nemke82.github.io/magento-doctor/#rules](https://nemke82.github.io/magento-doctor/#rules)
+- 📦 **Releases & Pre-compiled Standalone Binaries**: [https://github.com/nemke82/magento-doctor/releases](https://github.com/nemke82/magento-doctor/releases)
 
 ---
 
