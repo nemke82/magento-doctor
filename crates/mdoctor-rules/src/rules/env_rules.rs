@@ -106,5 +106,35 @@ pub fn evaluate_env_rules(installation: &MagentoInstallation) -> Vec<Finding> {
         }
     }
 
+    // 4. MD-ENV-003: OpenSearch version compatibility check
+    if let (Some(m_ver), Some(os_ver)) = (
+        installation.version.as_deref(),
+        installation.runtime.opensearch.version.as_deref(),
+    ) {
+        if let Some(false) = mdoctor_knowledge::versions::is_opensearch_supported(m_ver, os_ver) {
+            let mut finding = Finding::new(
+                "MD-ENV-003",
+                format!("Unsupported OpenSearch version ({}) for Magento {}", os_ver, m_ver),
+                Severity::Critical,
+                Confidence::High,
+                Category::Environment,
+            );
+
+            finding.summary = format!(
+                "OpenSearch version '{}' is not supported for Magento {}.",
+                os_ver, m_ver
+            );
+            finding.evidence.push(format!("OpenSearch version: {}", os_ver));
+            finding.evidence.push(format!("Magento version: {}", m_ver));
+            finding.impact = "Incompatible search engines cause catalog search reindexing failures, syntax exceptions during search, or broken layered navigation.".to_string();
+            finding.recommendation = format!(
+                "Deploy a supported OpenSearch release (such as OpenSearch 2.19 or 3.0) for Magento {}.",
+                m_ver
+            );
+
+            findings.push(finding);
+        }
+    }
+
     findings
 }

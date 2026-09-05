@@ -72,6 +72,36 @@ pub const RULE_EXPLANATIONS: &[RuleExplanation] = &[
         verification: "Inspect app/etc/env.php session and cache sections.",
         remediation: "Assign distinct database numbers in app/etc/env.php: e.g. database 0 for default cache, database 1 for page_cache, database 2 for session.",
     },
+    RuleExplanation {
+        rule_id: "MD-DB-004",
+        title: "Unsupported MySQL or MariaDB Version",
+        what: "The database server version is not certified or supported for this Magento release.",
+        why_affected: "Incompatible database versions cause SQL syntax errors, query planner regressions, unexpected collation coercion, or replication failure.",
+        detection_mechanism: "Compares live @@version or snapshot server_version against Magento Doctor's supported version matrix for MySQL (8.0, 8.4 LTS, 9.x) and MariaDB (10.4, 10.6, 10.11, 11.x).",
+        false_positives: "None when the server version string accurately reflects the database engine.",
+        verification: "Run in MySQL:\n  SELECT VERSION();",
+        remediation: "Upgrade or downgrade your database server to a version supported by Adobe's system requirements for this Magento release.",
+    },
+    RuleExplanation {
+        rule_id: "MD-CACHE-003",
+        title: "Unsupported Redis or Valkey Version",
+        what: "The Redis or Valkey server version falls outside the supported compatibility matrix for this Magento release.",
+        why_affected: "Running an untested cache server version risks command protocol incompatibilities, memory eviction anomalies, or unexpected key expiration behaviors.",
+        detection_mechanism: "Queries INFO server against configured Redis/Valkey endpoints and cross-checks with Magento Doctor's version matrix.",
+        false_positives: "Low.",
+        verification: "Run in terminal:\n  redis-cli INFO server | grep redis_version\nOr for Valkey:\n  valkey-cli INFO server",
+        remediation: "Align Redis or Valkey with supported versions: Redis 7.0/7.2/8.0 or Valkey 7.2/8.0.",
+    },
+    RuleExplanation {
+        rule_id: "MD-ENV-003",
+        title: "Unsupported OpenSearch Version",
+        what: "The configured OpenSearch cluster version is not certified for this Magento release.",
+        why_affected: "Catalog search, Elasticsearch/OpenSearch adapter modules, and faceted filtering depend on specific query DSL formats and index mapping schemas supported by particular OpenSearch releases.",
+        detection_mechanism: "Queries OpenSearch root endpoint (GET /) and compares 'version.number' against the Magento compatibility matrix.",
+        false_positives: "None.",
+        verification: "Run in terminal:\n  curl -s http://localhost:9200/",
+        remediation: "Deploy a certified OpenSearch version (e.g. OpenSearch 2.12, 2.19, or 3.0) and reindex catalogsearch_fulltext.",
+    },
 ];
 
 pub fn get_rule_explanation(rule_id: &str) -> Option<&'static RuleExplanation> {

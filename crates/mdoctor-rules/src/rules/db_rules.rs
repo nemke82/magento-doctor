@@ -3,6 +3,7 @@
 use mdoctor_core::{Category, Confidence, Finding, MagentoInstallation, Severity};
 use mdoctor_db::{find_redundant_indexes, reconcile_schemas};
 use mdoctor_knowledge::tables::find_table_knowledge;
+use mdoctor_knowledge::versions::{is_mariadb_supported, is_mysql_supported};
 
 pub fn evaluate_db_rules(installation: &MagentoInstallation) -> Vec<Finding> {
     let mut findings = Vec::new();
@@ -125,6 +126,44 @@ pub fn evaluate_db_rules(installation: &MagentoInstallation) -> Vec<Finding> {
 
                 findings.push(finding);
             }
+        }
+    }
+
+    // 5. MD-DB-004: Database version compatibility check (MySQL / MariaDB)
+    if let (Some(m_ver), Some(server_ver)) = (
+        installation.version.as_deref(),
+        installation.database_metrics.server_version.as_deref(),
+    ) {
+        let is_mariadb = server_ver.to_lowercase().contains("mariadb");
+        let supported = if is_mariadb {
+            is_mariadb_supported(m_ver, server_ver)
+        } else {
+            is_mysql_supported(m_ver, server_ver)
+        };
+
+        if let Some(false) = supported {
+            let db_type = if is_mariadb { "MariaDB" } else { "MySQL" };
+            let mut finding = Finding::new(
+                "MD-DB-004",
+                format!("Unsupported {} version ({}) for Magento {}", db_type, server_ver, m_ver),
+                Severity::Critical,
+                Confidence::High,
+                Category::Database,
+            );
+
+            finding.summary = format!(
+                "Database server version '{}' is outside the certified compatibility matrix for Magento {}.",
+                server_ver, m_ver
+            );
+            finding.evidence.push(format!("Server version: {}", server_ver));
+            finding.evidence.push(format!("Magento version: {}", m_ver));
+            finding.impact = "Unsupported database versions risk subtle SQL syntax errors, collation bugs, or query planner regressions.".to_string();
+            finding.recommendation = format!(
+                "Migrate to an officially supported {} release for Magento {}.",
+                db_type, m_ver
+            );
+
+            findings.push(finding);
         }
     }
 

@@ -77,5 +77,35 @@ pub fn evaluate_cache_rules(installation: &MagentoInstallation) -> Vec<Finding> 
         }
     }
 
+    // 2. MD-CACHE-003: Redis / Valkey version compatibility check
+    if let (Some(m_ver), Some(cache_ver)) = (
+        installation.version.as_deref(),
+        installation.runtime.redis_default.version.as_deref(),
+    ) {
+        if let Some(false) = mdoctor_knowledge::versions::is_redis_or_valkey_supported(m_ver, cache_ver) {
+            let mut finding = Finding::new(
+                "MD-CACHE-003",
+                format!("Unsupported Redis/Valkey version ({}) for Magento {}", cache_ver, m_ver),
+                Severity::Warning,
+                Confidence::High,
+                Category::Cache,
+            );
+
+            finding.summary = format!(
+                "Redis/Valkey server version '{}' is outside the supported compatibility matrix for Magento {}.",
+                cache_ver, m_ver
+            );
+            finding.evidence.push(format!("Running version: {}", cache_ver));
+            finding.evidence.push(format!("Magento version: {}", m_ver));
+            finding.impact = "Unsupported cache servers can cause command protocol incompatibilities, unexpected eviction anomalies, or memory leaks.".to_string();
+            finding.recommendation = format!(
+                "Use a certified Redis or Valkey release (such as Redis 7.2/8.0 or Valkey 8.0) compatible with Magento {}.",
+                m_ver
+            );
+
+            findings.push(finding);
+        }
+    }
+
     findings
 }
