@@ -411,11 +411,46 @@ cargo build --release --bin mdoctor
 
 // Initialize DOM interactions
 document.addEventListener("DOMContentLoaded", () => {
+  initThemeToggle();
   initTerminal();
   initRuleExplorer();
   initInstallTabs();
   initCopyButtons();
 });
+
+/**
+ * Theme switcher (Light / Dark mode, defaults to Light)
+ */
+function initThemeToggle() {
+  const toggleBtn = document.getElementById("theme-toggle");
+  if (!toggleBtn) return;
+
+  function updateAriaLabel(theme) {
+    if (theme === "dark") {
+      toggleBtn.setAttribute("aria-label", "Switch to light theme");
+      toggleBtn.setAttribute("title", "Switch to light theme");
+    } else {
+      toggleBtn.setAttribute("aria-label", "Switch to dark theme");
+      toggleBtn.setAttribute("title", "Switch to dark theme");
+    }
+  }
+
+  // Current theme from html attribute or localStorage (default light)
+  let currentTheme = document.documentElement.getAttribute("data-theme") || "light";
+  updateAriaLabel(currentTheme);
+
+  toggleBtn.addEventListener("click", () => {
+    const newTheme = currentTheme === "light" ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", newTheme);
+    try {
+      localStorage.setItem("mdoctor_theme", newTheme);
+    } catch (e) {
+      console.warn("Unable to save theme preference:", e);
+    }
+    currentTheme = newTheme;
+    updateAriaLabel(currentTheme);
+  });
+}
 
 /**
  * Terminal simulator tab switcher

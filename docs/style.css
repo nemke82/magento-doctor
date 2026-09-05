@@ -2,15 +2,89 @@
    Magento Doctor (mdoctor) - Official Showcase & Documentation Design System
    ========================================================================== */
 
-:root {
-  /* Color Tokens */
+/* Theme: Light (Default) */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+
+  /* Color Tokens - Light */
+  --bg-base: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-card: #ffffff;
+  --bg-card-hover: #ffffff;
+  --bg-card-solid: #ffffff;
+  --bg-glass: rgba(255, 255, 255, 0.85);
+  --site-header-bg: rgba(255, 255, 255, 0.85);
+
+  /* Accents - High Contrast for Light */
+  --cyan: #0284c7;
+  --cyan-glow: rgba(2, 132, 199, 0.16);
+  --emerald: #059669;
+  --emerald-glow: rgba(5, 150, 105, 0.16);
+  --magenta: #d91b5c;
+  --magenta-glow: rgba(217, 27, 92, 0.16);
+  --amber: #d97706;
+  --amber-glow: rgba(217, 119, 6, 0.16);
+  --purple: #7c3aed;
+
+  /* Severity Colors */
+  --sev-critical: #dc2626;
+  --sev-critical-bg: rgba(220, 38, 38, 0.08);
+  --sev-warning: #b45309;
+  --sev-warning-bg: rgba(217, 119, 6, 0.08);
+  --sev-info: #0284c7;
+  --sev-info-bg: rgba(2, 132, 199, 0.08);
+  --sev-success: #059669;
+  --sev-success-bg: rgba(5, 150, 105, 0.08);
+
+  /* Typography */
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+  --text-dim: #94a3b8;
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Borders & Shadows */
+  --border-subtle: rgba(15, 23, 42, 0.08);
+  --border-strong: rgba(15, 23, 42, 0.15);
+  --border-glow-cyan: rgba(2, 132, 199, 0.35);
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-full: 9999px;
+  --shadow-lg: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+  --shadow-glow: 0 4px 20px rgba(2, 132, 199, 0.1);
+  --transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Surface & Components Tokens */
+  --section-alt-bg: #f1f5f9;
+  --footer-bg: #f8fafc;
+  --input-bg: #ffffff;
+  --rule-meta-bg: #f8fafc;
+  --btn-github-bg: rgba(15, 23, 42, 0.04);
+  --btn-github-hover: rgba(15, 23, 42, 0.08);
+  --table-header-bg: #f1f5f9;
+  --card-overlay-bg: #f8fafc;
+
+  /* Ambient light overlay */
+  --ambient-1: radial-gradient(circle, rgba(2, 132, 199, 0.06) 0%, rgba(124, 58, 237, 0.02) 50%, transparent 70%);
+  --ambient-2: radial-gradient(circle, rgba(5, 150, 105, 0.05) 0%, rgba(2, 132, 199, 0.02) 50%, transparent 70%);
+}
+
+/* Theme: Dark (Current Theme Preserved) */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Color Tokens - Dark */
   --bg-base: #06080d;
   --bg-surface: #0c1017;
   --bg-card: rgba(16, 22, 34, 0.72);
   --bg-card-hover: rgba(23, 33, 52, 0.88);
   --bg-card-solid: #111726;
   --bg-glass: rgba(14, 20, 32, 0.65);
-  
+  --site-header-bg: rgba(6, 8, 13, 0.82);
+
   /* Accents */
   --cyan: #00f0ff;
   --cyan-glow: rgba(0, 240, 255, 0.25);
@@ -21,7 +95,7 @@
   --amber: #ffb800;
   --amber-glow: rgba(255, 184, 0, 0.2);
   --purple: #8b5cf6;
-  
+
   /* Severity Colors */
   --sev-critical: #ff3b5c;
   --sev-critical-bg: rgba(255, 59, 92, 0.12);
@@ -37,20 +111,27 @@
   --text-secondary: #cbd5e1;
   --text-muted: #94a3b8;
   --text-dim: #64748b;
-  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   /* Borders & Shadows */
   --border-subtle: rgba(255, 255, 255, 0.07);
   --border-strong: rgba(255, 255, 255, 0.15);
   --border-glow-cyan: rgba(0, 240, 255, 0.4);
-  --radius-sm: 6px;
-  --radius-md: 12px;
-  --radius-lg: 18px;
-  --radius-full: 9999px;
   --shadow-lg: 0 20px 40px -15px rgba(0, 0, 0, 0.7);
   --shadow-glow: 0 0 30px rgba(0, 240, 255, 0.15);
-  --transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Surface & Components Tokens */
+  --section-alt-bg: linear-gradient(180deg, var(--bg-base) 0%, #090d16 100%);
+  --footer-bg: #05070a;
+  --input-bg: rgba(14, 20, 32, 0.8);
+  --rule-meta-bg: rgba(7, 10, 16, 0.7);
+  --btn-github-bg: rgba(255, 255, 255, 0.06);
+  --btn-github-hover: rgba(255, 255, 255, 0.12);
+  --table-header-bg: rgba(8, 12, 20, 0.95);
+  --card-overlay-bg: rgba(12, 16, 26, 0.92);
+
+  /* Ambient light overlay */
+  --ambient-1: radial-gradient(circle, rgba(0, 240, 255, 0.08) 0%, rgba(139, 92, 246, 0.03) 50%, transparent 70%);
+  --ambient-2: radial-gradient(circle, rgba(0, 255, 157, 0.06) 0%, rgba(0, 240, 255, 0.02) 50%, transparent 70%);
 }
 
 /* Reset & Base Setup */
@@ -62,7 +143,6 @@
 
 html {
   scroll-behavior: smooth;
-  color-scheme: dark;
 }
 
 body {
@@ -74,9 +154,10 @@ body {
   overflow-x: hidden;
   position: relative;
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
-/* Subtle Cyber Ambient Lighting */
+/* Subtle Ambient Lighting */
 body::before {
   content: "";
   position: fixed;
@@ -84,7 +165,7 @@ body::before {
   left: 20%;
   width: 60vw;
   height: 40vw;
-  background: radial-gradient(circle, rgba(0, 240, 255, 0.08) 0%, rgba(139, 92, 246, 0.03) 50%, transparent 70%);
+  background: var(--ambient-1);
   filter: blur(80px);
   z-index: -1;
   pointer-events: none;
@@ -97,7 +178,7 @@ body::after {
   right: 10%;
   width: 50vw;
   height: 35vw;
-  background: radial-gradient(circle, rgba(0, 255, 157, 0.06) 0%, rgba(0, 240, 255, 0.02) 50%, transparent 70%);
+  background: var(--ambient-2);
   filter: blur(80px);
   z-index: -1;
   pointer-events: none;
@@ -127,7 +208,7 @@ code, pre {
   z-index: 100;
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  background: rgba(6, 8, 13, 0.82);
+  background: var(--site-header-bg);
   border-bottom: 1px solid var(--border-subtle);
   transition: var(--transition);
 }
@@ -152,7 +233,7 @@ code, pre {
   width: 38px;
   height: 38px;
   border-radius: var(--radius-md);
-  background: linear-gradient(135deg, #00f0ff 0%, #0077ff 100%);
+  background: linear-gradient(135deg, var(--cyan) 0%, #0077ff 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -162,6 +243,10 @@ code, pre {
 .brand-icon svg {
   width: 22px;
   height: 22px;
+  fill: #ffffff;
+}
+
+[data-theme="dark"] .brand-icon svg {
   fill: #06080d;
 }
 
@@ -188,6 +273,11 @@ code, pre {
   letter-spacing: 0.05em;
 }
 
+[data-theme="light"] .calver-badge {
+  background: rgba(2, 132, 199, 0.08);
+  border-color: rgba(2, 132, 199, 0.25);
+}
+
 .nav-links {
   display: flex;
   align-items: center;
@@ -209,7 +299,61 @@ code, pre {
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
+}
+
+/* Theme Switcher Button */
+.btn-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  background: var(--btn-github-bg);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: var(--transition);
+  padding: 0;
+  position: relative;
+}
+
+.btn-theme-toggle:hover {
+  background: var(--btn-github-hover);
+  border-color: var(--border-strong);
+  color: var(--cyan);
+  transform: translateY(-1px);
+}
+
+.btn-theme-toggle:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+.btn-theme-toggle svg {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+}
+
+/* Toggle icon display: Light mode shows Moon; Dark mode shows Sun */
+:root .sun-icon,
+[data-theme="light"] .sun-icon {
+  display: none;
+}
+:root .moon-icon,
+[data-theme="light"] .moon-icon {
+  display: block;
+}
+
+[data-theme="dark"] .sun-icon {
+  display: block;
+}
+[data-theme="dark"] .moon-icon {
+  display: none;
+}
+
+.btn-theme-toggle:hover svg {
+  transform: rotate(15deg);
 }
 
 .btn-github {
@@ -220,14 +364,14 @@ code, pre {
   font-size: 0.88rem;
   font-weight: 600;
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--btn-github-bg);
   border: 1px solid var(--border-subtle);
   color: var(--text-primary);
   transition: var(--transition);
 }
 
 .btn-github:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--btn-github-hover);
   border-color: var(--border-strong);
   transform: translateY(-1px);
 }
@@ -240,18 +384,29 @@ code, pre {
   font-size: 0.9rem;
   font-weight: 600;
   border-radius: var(--radius-md);
-  background: linear-gradient(135deg, #00f0ff 0%, #0099ff 100%);
-  color: #050811;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff;
   border: none;
   cursor: pointer;
-  box-shadow: 0 0 20px var(--cyan-glow);
+  box-shadow: 0 4px 14px var(--cyan-glow);
   transition: var(--transition);
 }
 
 .btn-primary:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 6px 20px var(--cyan-glow);
+  transform: translateY(-2px);
+}
+
+[data-theme="dark"] .btn-primary {
+  background: linear-gradient(135deg, #00f0ff 0%, #0099ff 100%);
+  color: #050811;
+  box-shadow: 0 0 20px var(--cyan-glow);
+}
+
+[data-theme="dark"] .btn-primary:hover {
   filter: brightness(1.15);
   box-shadow: 0 0 30px rgba(0, 240, 255, 0.45);
-  transform: translateY(-2px);
 }
 
 /* ==========================================================================
@@ -306,6 +461,12 @@ code, pre {
 }
 
 .hero h1 .text-gradient {
+  background: linear-gradient(135deg, #0284c7 10%, #059669 60%, #7c3aed 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+[data-theme="dark"] .hero h1 .text-gradient {
   background: linear-gradient(135deg, #00f0ff 10%, #00ff9d 60%, #a855f7 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -330,7 +491,7 @@ code, pre {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: rgba(14, 20, 32, 0.95);
+  background: #0f172a;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   padding: 10px 16px;
@@ -340,22 +501,22 @@ code, pre {
 
 .quick-install-box code {
   font-size: 0.88rem;
-  color: var(--cyan);
+  color: #38bdf8;
   user-select: all;
   white-space: nowrap;
   overflow-x: auto;
 }
 
 .quick-install-box .prompt {
-  color: var(--text-dim);
+  color: #64748b;
   margin-right: 8px;
   user-select: none;
 }
 
 .btn-copy {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #f8fafc;
   border-radius: var(--radius-sm);
   padding: 6px 12px;
   font-size: 0.8rem;
@@ -369,8 +530,12 @@ code, pre {
 
 .btn-copy:hover {
   background: var(--cyan);
-  color: #06080d;
+  color: #ffffff;
   border-color: var(--cyan);
+}
+
+[data-theme="dark"] .btn-copy:hover {
+  color: #06080d;
 }
 
 .hero-stats-row {
@@ -404,8 +569,12 @@ code, pre {
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   overflow: hidden;
-  box-shadow: var(--shadow-lg), 0 0 50px rgba(0, 240, 255, 0.12);
+  box-shadow: var(--shadow-lg);
   transition: var(--transition);
+}
+
+[data-theme="dark"] .hero-graphic-card {
+  box-shadow: var(--shadow-lg), 0 0 50px rgba(0, 240, 255, 0.12);
 }
 
 .hero-graphic-card:hover {
@@ -425,7 +594,7 @@ code, pre {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
-  background: rgba(12, 16, 26, 0.92);
+  background: var(--card-overlay-bg);
 }
 
 .overlay-stat {
@@ -542,7 +711,8 @@ code, pre {
   font-family: var(--font-mono);
   font-size: 0.72rem;
   padding: 2px 8px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--btn-github-bg);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
 }
@@ -569,7 +739,7 @@ code, pre {
 }
 
 .comparison-table th {
-  background: rgba(8, 12, 20, 0.95);
+  background: var(--table-header-bg);
   font-size: 0.9rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -578,12 +748,12 @@ code, pre {
 
 .comparison-table th.highlight-col {
   color: var(--cyan);
-  background: rgba(0, 240, 255, 0.05);
+  background: var(--sev-info-bg);
   border-bottom: 2px solid var(--cyan);
 }
 
 .comparison-table td.highlight-col {
-  background: rgba(0, 240, 255, 0.02);
+  background: var(--sev-info-bg);
   font-weight: 600;
   color: var(--text-primary);
 }
@@ -596,7 +766,7 @@ code, pre {
    Interactive Terminal Simulator
    ========================================================================== */
 .terminal-section {
-  background: linear-gradient(180deg, var(--bg-base) 0%, #090d16 100%);
+  background: var(--section-alt-bg);
   border-top: 1px solid var(--border-subtle);
   border-bottom: 1px solid var(--border-subtle);
 }
@@ -605,8 +775,12 @@ code, pre {
   background: #090c14;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg), 0 0 60px rgba(0, 240, 255, 0.1);
+  box-shadow: var(--shadow-lg);
   overflow: hidden;
+}
+
+[data-theme="dark"] .terminal-wrapper {
+  box-shadow: var(--shadow-lg), 0 0 60px rgba(0, 240, 255, 0.1);
 }
 
 .terminal-header {
@@ -838,14 +1012,19 @@ code, pre {
 }
 
 .category-pill:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--btn-github-hover);
   color: var(--text-primary);
 }
 
 .category-pill.active {
   background: var(--cyan);
-  color: #06080d;
+  color: #ffffff;
   border-color: var(--cyan);
+  box-shadow: 0 2px 10px var(--cyan-glow);
+}
+
+[data-theme="dark"] .category-pill.active {
+  color: #06080d;
   box-shadow: 0 0 15px var(--cyan-glow);
 }
 
@@ -859,7 +1038,7 @@ code, pre {
 .search-input {
   width: 100%;
   padding: 14px 20px 14px 44px;
-  background: rgba(14, 20, 32, 0.8);
+  background: var(--input-bg);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   color: var(--text-primary);
@@ -896,6 +1075,7 @@ code, pre {
   transition: var(--transition);
   display: flex;
   flex-direction: column;
+  box-shadow: var(--shadow-lg);
 }
 
 .rule-item-card:hover {
@@ -916,9 +1096,14 @@ code, pre {
   font-weight: 700;
   padding: 3px 10px;
   border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--sev-info-bg);
   color: var(--cyan);
-  border: 1px solid rgba(0, 240, 255, 0.25);
+  border: 1px solid rgba(2, 132, 199, 0.25);
+}
+
+[data-theme="dark"] .rule-id-badge {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(0, 240, 255, 0.25);
 }
 
 .sev-badge {
@@ -949,11 +1134,12 @@ code, pre {
 }
 
 .rule-meta-box {
-  background: rgba(7, 10, 16, 0.7);
+  background: var(--rule-meta-bg);
   border-radius: var(--radius-sm);
   padding: 10px 14px;
   font-size: 0.84rem;
-  border-left: 2px solid var(--cyan);
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--cyan);
 }
 
 .rule-meta-label {
@@ -988,7 +1174,7 @@ code, pre {
 }
 
 .matrix-table th {
-  background: #090d16;
+  background: var(--table-header-bg);
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -1000,20 +1186,22 @@ code, pre {
   font-size: 0.76rem;
   padding: 2px 7px;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--btn-github-bg);
+  border: 1px solid var(--border-subtle);
   margin: 2px 3px;
+  color: var(--text-secondary);
 }
 
 .version-chip.certified {
-  background: rgba(0, 255, 157, 0.1);
+  background: var(--sev-success-bg);
   color: var(--emerald);
-  border: 1px solid rgba(0, 255, 157, 0.3);
+  border: 1px solid rgba(5, 150, 105, 0.3);
 }
 
 .version-chip.lts {
-  background: rgba(0, 240, 255, 0.1);
+  background: var(--sev-info-bg);
   color: var(--cyan);
-  border: 1px solid rgba(0, 240, 255, 0.3);
+  border: 1px solid rgba(2, 132, 199, 0.3);
 }
 
 /* ==========================================================================
@@ -1038,10 +1226,20 @@ code, pre {
   transition: var(--transition);
 }
 
+.install-tab-btn:hover {
+  background: var(--btn-github-hover);
+}
+
 .install-tab-btn.active {
+  background: var(--cyan);
+  color: #ffffff;
+  border-color: var(--cyan);
+  box-shadow: 0 2px 10px var(--cyan-glow);
+}
+
+[data-theme="dark"] .install-tab-btn.active {
   background: var(--bg-card-hover);
   color: var(--cyan);
-  border-color: var(--cyan);
   box-shadow: 0 0 15px var(--cyan-glow);
 }
 
@@ -1083,6 +1281,7 @@ code, pre {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   padding: 28px;
+  box-shadow: var(--shadow-lg);
 }
 
 .guarantee-card h4 {
@@ -1108,7 +1307,7 @@ code, pre {
    Footer
    ========================================================================== */
 .site-footer {
-  background: #05070a;
+  background: var(--footer-bg);
   border-top: 1px solid var(--border-subtle);
   padding: 60px 0 40px;
   color: var(--text-muted);
