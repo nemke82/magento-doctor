@@ -1,6 +1,5 @@
 //! Central correlation engine executing all cross-analysis rules.
 
-use std::path::Path;
 use mdoctor_core::{Finding, MagentoInstallation, Severity};
 use mdoctor_php::{AstFinding, PhpAstAnalyzer};
 use walkdir::WalkDir;
@@ -18,8 +17,8 @@ pub struct CrossAnalysisEngine;
 impl CrossAnalysisEngine {
     /// Runs full cross-analysis against the normalized installation model.
     pub fn analyze(installation: &MagentoInstallation) -> Vec<Finding> {
-        // 1. Run PHP AST analysis across app/code and custom vendor modules
-        let ast_findings = scan_php_sources(&installation.root);
+        // 1. Run PHP AST analysis across app/code and custom/third-party modules
+        let ast_findings = scan_php_sources(installation);
 
         // 2. Evaluate all rules
         let mut findings = Vec::new();
@@ -55,20 +54,41 @@ impl CrossAnalysisEngine {
     }
 }
 
-/// Scans PHP files in app/code and relevant vendor directories.
-fn scan_php_sources(root: &Path) -> Vec<AstFinding> {
+/// Scans PHP files in app/code and relevant third-party modules.
+fn scan_php_sources(installation: &MagentoInstallation) -> Vec<AstFinding> {
     let mut findings = Vec::new();
     let mut analyzer = PhpAstAnalyzer::new();
 
-    let scan_dirs = [root.join("app/code"), root.join("vendor")];
+    let mut scan_dirs = Vec::new();
 
-    for dir in scan_dirs {
-        if !dir.exists() {
+    // 1. app/code (all custom store modules)
+    let app_code = installation.root.join("app/code");
+    if app_code.exists() {
+        scan_dirs.push(app_code);
+    }
+
+    // 2. Non-core vendor modules (skip generic vendor libraries like AWS SDK, Symfony, Doctrine, etc.)
+    for module in &installation.modules {
+        if !module.is_enabled || module.path.as_os_str().is_empty() {
             continue;
         }
 
+        match module.classification {
+            mdoctor_core::ModuleClassification::Core
+            | mdoctor_core::ModuleClassification::AdobeCommerce => {
+                // Core framework code is verified by Adobe; skip brute-force traversal
+            }
+            _ => {
+                if module.path.exists() && !scan_dirs.contains(&module.path) {
+                    scan_dirs.push(module.path.clone());
+                }
+            }
+        }
+    }
+
+    for dir in scan_dirs {
         for entry in WalkDir::new(dir)
-            .max_depth(8)
+            .max_depth(6)
             .into_iter()
             .filter_map(|e| e.ok())
         {
@@ -76,8 +96,8 @@ fn scan_php_sources(root: &Path) -> Vec<AstFinding> {
                 if let Some(ext) = entry.path().extension() {
                     if ext == "php" {
                         let path_str = entry.path().to_string_lossy();
-                        // Ignore test files to prevent false alarms
-                        if path_str.contains("/Test/") || path_str.contains("/tests/") {
+                        // Ignore test/dev files to prevent false alarms
+                        if path_str.contains("/Test/") || path_str.contains("/tests/") || path_str.contains("/dev/") {
                             continue;
                         }
 

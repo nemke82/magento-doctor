@@ -4,7 +4,6 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use mdoctor_core::{Module, ModuleClassification, ModuleFootprint};
 use regex::Regex;
-use walkdir::WalkDir;
 
 /// Read enabled/disabled status of modules from app/etc/config.php.
 pub fn parse_config_php(config_path: &Path) -> HashMap<String, bool> {
@@ -32,43 +31,82 @@ pub fn discover_modules(
     let mut modules = Vec::new();
     let mut discovered_names = std::collections::HashSet::new();
 
-    // 1. Scan app/code
+    // 1. Scan app/code: app/code/<Vendor>/<Module>/etc/module.xml
     let app_code = root.join("app/code");
     if app_code.exists() {
-        for entry in WalkDir::new(&app_code)
-            .min_depth(2)
-            .max_depth(3)
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
-            if entry.file_type().is_dir() {
-                let module_xml = entry.path().join("etc/module.xml");
-                if module_xml.exists() {
-                    if let Some(module) = parse_module_xml_file(&module_xml, entry.path(), true, config_statuses, installed_packages) {
-                        discovered_names.insert(module.name.clone());
-                        modules.push(module);
+        if let Ok(vendors) = std::fs::read_dir(&app_code) {
+            for v_entry in vendors.filter_map(|e| e.ok()) {
+                if v_entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false) {
+                    if let Ok(mod_dirs) = std::fs::read_dir(v_entry.path()) {
+                        for m_entry in mod_dirs.filter_map(|e| e.ok()) {
+                            if m_entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false) {
+                                let module_dir = m_entry.path();
+                                let module_xml = module_dir.join("etc/module.xml");
+                                if module_xml.exists() {
+                                    if let Some(module) = parse_module_xml_file(
+                                        &module_xml,
+                                        &module_dir,
+                                        true,
+                                        config_statuses,
+                                        installed_packages,
+                                    ) {
+                                        discovered_names.insert(module.name.clone());
+                                        modules.push(module);
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
     }
 
-    // 2. Scan vendor
+    // 2. Scan vendor: vendor/<vendor>/<package>/etc/module.xml (or src/etc/module.xml)
     let vendor = root.join("vendor");
     if vendor.exists() {
-        for entry in WalkDir::new(&vendor)
-            .min_depth(2)
-            .max_depth(4)
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
-            if entry.file_type().is_dir() {
-                let module_xml = entry.path().join("etc/module.xml");
-                if module_xml.exists() {
-                    if let Some(module) = parse_module_xml_file(&module_xml, entry.path(), false, config_statuses, installed_packages) {
-                        if !discovered_names.contains(&module.name) {
-                            discovered_names.insert(module.name.clone());
-                            modules.push(module);
+        if let Ok(vendors) = std::fs::read_dir(&vendor) {
+            for v_entry in vendors.filter_map(|e| e.ok()) {
+                let v_name = v_entry.file_name();
+                let v_str = v_name.to_string_lossy();
+                // Skip non-module vendor directories like bin, composer, .cache
+                if v_str == "bin" || v_str == "composer" || v_str.starts_with('.') {
+                    continue;
+                }
+
+                if v_entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false) {
+                    if let Ok(pkgs) = std::fs::read_dir(v_entry.path()) {
+                        for p_entry in pkgs.filter_map(|e| e.ok()) {
+                            if p_entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false) {
+                                let pkg_dir = p_entry.path();
+
+                                // Standard: vendor/<vendor>/<package>/etc/module.xml
+                                let mut module_xml = pkg_dir.join("etc/module.xml");
+                                let mut module_dir = pkg_dir.clone();
+                                if !module_xml.exists() {
+                                    // Secondary: vendor/<vendor>/<package>/src/etc/module.xml
+                                    let src_xml = pkg_dir.join("src/etc/module.xml");
+                                    if src_xml.exists() {
+                                        module_xml = src_xml;
+                                        module_dir = pkg_dir.join("src");
+                                    }
+                                }
+
+                                if module_xml.exists() {
+                                    if let Some(module) = parse_module_xml_file(
+                                        &module_xml,
+                                        &module_dir,
+                                        false,
+                                        config_statuses,
+                                        installed_packages,
+                                    ) {
+                                        if !discovered_names.contains(&module.name) {
+                                            discovered_names.insert(module.name.clone());
+                                            modules.push(module);
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
