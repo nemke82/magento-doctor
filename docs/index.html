@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Magento Doctor (mdoctor) — Deep Diagnostics & Performance Forensics</title>
+  <meta name="description" content="Deep diagnostics, static analysis, and performance forensics for Magento 2. Correlates PHP AST, DI plugins, crontab overlap storms, declarative DB schemas, Redis, and runtime state into evidence-backed engineering diagnoses.">
+  <meta name="keywords" content="magento, magento 2, performance, diagnostics, forensics, rust, static analysis, opensearch, mariadb 11, mysql 8.4, valkey 8, php 8.5">
+  
+  <!-- Open Graph -->
+  <meta property="og:title" content="Magento Doctor (mdoctor) — Deep Diagnostics & Performance Forensics">
+  <meta property="og:description" content="Engineer-grade diagnostics for Magento 2. Correlates code, configuration, DB schema, crons, and runtime state.">
+  <meta property="og:image" content="assets/hero_banner.jpg">
+  <meta property="og:type" content="website">
+
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Sticky Header -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="#" class="brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <div class="brand-title">
+          <span>Magento<span class="doc-sub">Doctor</span></span>
+          <span class="calver-badge">v2026.08.26</span>
+        </div>
+      </a>
+
+      <nav>
+        <ul class="nav-links">
+          <li><a href="#philosophy" class="nav-link">Architecture</a></li>
+          <li><a href="#simulator" class="nav-link">Terminal Simulator</a></li>
+          <li><a href="#features" class="nav-link">Capabilities</a></li>
+          <li><a href="#rules" class="nav-link">Rule Catalog</a></li>
+          <li><a href="#matrix" class="nav-link">Stack Matrix</a></li>
+          <li><a href="#install" class="nav-link">Download</a></li>
+        </ul>
+      </nav>
+
+      <div class="header-actions">
+        <a href="https://github.com/nemke82/magento-doctor" target="_blank" rel="noopener" class="btn-github">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+          </svg>
+          <span>GitHub</span>
+        </a>
+        <a href="https://github.com/nemke82/magento-doctor/releases/tag/v2026.08.26" target="_blank" rel="noopener" class="btn-primary">
+          <span>Get v2026.08.26</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="container hero-grid">
+      <div class="hero-left">
+        <div class="hero-badge">
+          <span class="pulse-dot"></span>
+          <span>CalVer v2026.08.26 Standalone Binaries Live</span>
+        </div>
+        <h1>
+          Deep diagnostics & performance forensics for <span class="text-gradient">Magento 2</span>
+        </h1>
+        <p class="hero-description">
+          Rather than dumping 150 disconnected checklist warnings, Magento Doctor correlates PHP AST static analysis, DI plugins, crontab overlap storms, declarative database schemas, and runtime metrics into an <b>engineer-grade investigation</b>.
+        </p>
+
+        <div class="hero-cta-group">
+          <div class="quick-install-box">
+            <code><span class="prompt">$</span><span id="hero-install-cmd">curl -sSL https://github.com/nemke82/magento-doctor/releases/latest/download/mdoctor-linux-amd64 -o /usr/local/bin/mdoctor && chmod +x /usr/local/bin/mdoctor</span></code>
+            <button class="btn-copy" data-copy-target="hero-install-cmd">Copy</button>
+          </div>
+        </div>
+
+        <div class="hero-stats-row">
+          <div class="hero-stat-item">
+            <div class="stat-num cyan">24ms</div>
+            <div class="stat-label">Full Store Scan</div>
+          </div>
+          <div class="hero-stat-item">
+            <div class="stat-num emerald">100%</div>
+            <div class="stat-label">Offline & Safe</div>
+          </div>
+          <div class="hero-stat-item">
+            <div class="stat-num">0</div>
+            <div class="stat-label">Secrets Exposed</div>
+          </div>
+          <div class="hero-stat-item">
+            <div class="stat-num emerald">2.4.4 - 2.4.9</div>
+            <div class="stat-label">Certified Stacks</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-right">
+        <div class="hero-graphic-card">
+          <img src="assets/hero_banner.jpg" alt="Magento Doctor Telemetry Interface" width="600" height="338">
+          <div class="card-overlay-stats">
+            <div class="overlay-stat">
+              <span class="val green">Multi-Signal</span>
+              <span class="lbl">Engine Correlation</span>
+            </div>
+            <div class="overlay-stat">
+              <span class="val cyan">Tree-Sitter</span>
+              <span class="lbl">PHP AST Static Analysis</span>
+            </div>
+            <div class="overlay-stat">
+              <span class="val amber">Zero Leak</span>
+              <span class="lbl">SecretValue Redaction</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Philosophy & Architecture -->
+  <section id="philosophy" class="section">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">Core Philosophy</span>
+        <h2 class="section-title">From Disconnected Warnings to Root Cause Forensics</h2>
+        <p class="section-subtitle">
+          Standard health checkers test isolated criteria without understanding how Magento subsystems interact. Magento Doctor builds an internal normalized model of the store and correlates facts across modules, database schema, and runtime.
+        </p>
+      </div>
+
+      <div class="pipeline-flow">
+        <div class="pipeline-step">
+          <div class="step-num">01 // COLLECT</div>
+          <h3>Safe Collectors</h3>
+          <p>Discovers Magento root, parses <code>app/etc/env.php</code>, reads composer dependencies, declarative schemas, XML configurations, and runtime state with strict safety timeouts.</p>
+          <div class="step-tags">
+            <span class="step-badge">env.php</span>
+            <span class="step-badge">di.xml</span>
+            <span class="step-badge">crontab.xml</span>
+            <span class="step-badge">db_schema.xml</span>
+          </div>
+        </div>
+
+        <div class="pipeline-step">
+          <div class="step-num">02 // MODEL</div>
+          <h3>Normalized Representation</h3>
+          <p>Assembles the store into an in-memory <code>MagentoInstallation</code> graph. Credentials are strictly sanitized into <code>SecretValue::Present</code> to prevent token leaks.</p>
+          <div class="step-tags">
+            <span class="step-badge">Zero Exposure</span>
+            <span class="step-badge">Footprint Metrics</span>
+            <span class="step-badge">Dependency Graph</span>
+          </div>
+        </div>
+
+        <div class="pipeline-step">
+          <div class="step-num">03 // CORRELATE</div>
+          <h3>Cross-Subsystem Analysis</h3>
+          <p>Correlates facts across subsystems: Tree-sitter PHP AST static analysis detects N+1 loops and sync HTTP inside declared cron jobs or hot-path plugins.</p>
+          <div class="step-tags">
+            <span class="step-badge">AST Analysis</span>
+            <span class="step-badge">Overlap Storms</span>
+            <span class="step-badge">Schema Diffing</span>
+          </div>
+        </div>
+
+        <div class="pipeline-step">
+          <div class="step-num">04 // DIAGNOSE</div>
+          <h3>Evidence-First Findings</h3>
+          <p>Delivers targeted findings with exact source code lines, runtime evidence, business impact, MySQL verification queries, and concrete remediation steps.</p>
+          <div class="step-tags">
+            <span class="step-badge">Health Score</span>
+            <span class="step-badge">Verification SQL</span>
+            <span class="step-badge">SARIF / JSON</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Comparison Container -->
+      <div class="comparison-container">
+        <table class="comparison-table">
+          <thead>
+            <tr>
+              <th style="width: 25%;">Forensic Dimension</th>
+              <th style="width: 35%;">Traditional Checklist Health Checkers</th>
+              <th style="width: 40%;" class="highlight-col">Magento Doctor (mdoctor)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><b>Cron Diagnostics</b></td>
+              <td>Checks if system cron is in crontab or table has records.</td>
+              <td class="highlight-col">Calculates <b>overlap ratio</b> (frequency vs median runtime) and correlates long-running jobs to N+1 loops and sync HTTP calls in AST.</td>
+            </tr>
+            <tr>
+              <td><b>Plugin Analysis</b></td>
+              <td>Lists active plugins without context.</td>
+              <td class="highlight-col">Identifies <code>around</code> plugins on critical hot paths (checkout, catalog pricing) and flags blocking network requests or database writes.</td>
+            </tr>
+            <tr>
+              <td><b>Database Inspection</b></td>
+              <td>Basic connection ping or row counts.</td>
+              <td class="highlight-col">Reconciles <code>db_schema.xml</code> with physical MySQL tables, identifies redundant left-prefix indexes, and flags unmanaged orphan tables.</td>
+            </tr>
+            <tr>
+              <td><b>Code Static Analysis</b></td>
+              <td>Requires separate PHPStan/PHPCS setup.</td>
+              <td class="highlight-col">Built-in Tree-sitter AST engine checks repository calls in loops (<code>$repo->getById()</code>), direct <code>ObjectManager</code>, and sync HTTP requests.</td>
+            </tr>
+            <tr>
+              <td><b>Security & Secrets</b></td>
+              <td>Often logs plain DB credentials or config arrays.</td>
+              <td class="highlight-col"><b>Zero-exposure guarantee</b>: all secrets mapped to <code>SecretValue::Present</code>. Impossible to print or leak in snapshots.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Interactive Terminal Simulator -->
+  <section id="simulator" class="section terminal-section">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">Interactive Forensics Preview</span>
+        <h2 class="section-title">Explore mdoctor Subcommands Live</h2>
+        <p class="section-subtitle">
+          Test real outputs from our comprehensive test fixtures. Switch tabs to see how Magento Doctor formats terminal findings, explains root causes, and isolates performance bottlenecks.
+        </p>
+      </div>
+
+      <div class="terminal-wrapper">
+        <div class="terminal-header">
+          <div class="mac-buttons">
+            <span class="mac-dot red"></span>
+            <span class="mac-dot yellow"></span>
+            <span class="mac-dot green"></span>
+          </div>
+
+          <div class="terminal-tabs">
+            <button class="term-tab active" data-tab="scan">scan</button>
+            <button class="term-tab" data-tab="doctor">doctor</button>
+            <button class="term-tab" data-tab="cron">cron</button>
+            <button class="term-tab" data-tab="module">module</button>
+            <button class="term-tab" data-tab="db">db</button>
+            <button class="term-tab" data-tab="explain">explain</button>
+            <button class="term-tab" data-tab="why">why slow</button>
+          </div>
+
+          <button class="btn-copy" data-copy-target="terminal-command-text">Copy Command</button>
+        </div>
+
+        <div class="terminal-body">
+          <div class="term-cmd">
+            <span class="prompt-sym">➜  store_root git:(production)</span>
+            <span class="cmd-txt" id="terminal-command-text">mdoctor scan --offline</span>
+          </div>
+          <div id="terminal-output-body">
+            <!-- Populated via app.js -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Deep Capabilities Features Grid -->
+  <section id="features" class="section">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">Forensic Subsystems</span>
+        <h2 class="section-title">Engineered Specifically for Magento 2 Architecture</h2>
+        <p class="section-subtitle">
+          Every analyzer was designed around Adobe Commerce and Magento Open Source design patterns, bottlenecks, and declarative mechanics.
+        </p>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon cyan">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="16 18 22 12 16 6"></polyline>
+              <polyline points="8 6 2 12 8 18"></polyline>
+            </svg>
+          </div>
+          <h3>Tree-Sitter PHP AST Static Analysis</h3>
+          <p>Analyzes code without booting Magento or executing PHP. Detects N+1 repository queries inside loops (<code>$repo->getById()</code>), direct <code>ObjectManager</code> calls, and synchronous HTTP calls.</p>
+          <div class="feature-footer-tags">
+            <span class="step-badge">MD-PERF-021</span>
+            <span class="step-badge">MD-DI-005</span>
+            <span class="step-badge">MD-PERF-015</span>
+          </div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon emerald">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+          </div>
+          <h3>Cron Overlap Storm Forensics</h3>
+          <p>Compares declared crontab intervals against median and P95 runtimes in <code>cron_schedule</code>. Calculates overlap ratios to detect cascading lock storms and stuck background workers.</p>
+          <div class="feature-footer-tags">
+            <span class="step-badge">MD-CRON-010</span>
+            <span class="step-badge">MD-CRON-001</span>
+            <span class="step-badge">Overlap Ratio</span>
+          </div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon magenta">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+              <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+              <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+            </svg>
+          </div>
+          <h3>Declarative Schema Reconciliation</h3>
+          <p>Diffs active <code>db_schema.xml</code> declarations against live <code>information_schema</code>. Flags missing indexes, orphan unmanaged tables, and redundant left-prefix indexes polluting the InnoDB buffer pool.</p>
+          <div class="feature-footer-tags">
+            <span class="step-badge">MD-DB-001</span>
+            <span class="step-badge">MD-DB-002</span>
+            <span class="step-badge">MD-DB-005</span>
+          </div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon amber">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+            </svg>
+          </div>
+          <h3>Hot-Path Plugin Interception</h3>
+          <p>Maintains a curated database of critical storefront hot paths (checkout submission, cart totals, catalog price calculation). Warns when <code>around</code> plugins inject latency or risks of recursion.</p>
+          <div class="feature-footer-tags">
+            <span class="step-badge">MD-PLG-001</span>
+            <span class="step-badge">MD-PLG-002</span>
+            <span class="step-badge">Checkout Latency</span>
+          </div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon purple">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+          </div>
+          <h3>Modern Stack Compatibility Engine</h3>
+          <p>Validates PHP (8.1–8.5), MariaDB (10.4–11.4 LTS), MySQL (8.0, 8.4 LTS, 9.x), OpenSearch (1.2–3.0), and Redis / Valkey (6.2–8.0) against certified version requirements for Magento 2.4.4 through 2.4.9.</p>
+          <div class="feature-footer-tags">
+            <span class="step-badge">MD-ENV-001</span>
+            <span class="step-badge">MD-DB-004</span>
+            <span class="step-badge">MD-CACHE-003</span>
+          </div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon cyan">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+          </div>
+          <h3>Air-Gapped Sanitized Snapshots</h3>
+          <p>Export full store diagnostics with <code>mdoctor snapshot create</code> for offline forensic inspection. All database passwords, tokens, and crypt keys are redacted at the data structure level.</p>
+          <div class="feature-footer-tags">
+            <span class="step-badge">SecretValue Redaction</span>
+            <span class="step-badge">Offline Sharing</span>
+            <span class="step-badge">Zero Exposure</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Interactive Rule Taxonomy & Catalog -->
+  <section id="rules" class="section">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">Rule Catalog & Taxonomy</span>
+        <h2 class="section-title">Evidence-First Diagnostic Rules</h2>
+        <p class="section-subtitle">
+          Explore the rule taxonomy. Filter by subsystem category or search by keyword to preview detection mechanisms and remediation workflows.
+        </p>
+      </div>
+
+      <div class="rule-explorer-controls">
+        <div class="filter-categories">
+          <button class="category-pill active" data-cat="all">All Rules</button>
+          <button class="category-pill" data-cat="cron">Cron Forensics</button>
+          <button class="category-pill" data-cat="plugins">Plugins</button>
+          <button class="category-pill" data-cat="perf">Performance & AST</button>
+          <button class="category-pill" data-cat="db">Database & Schema</button>
+          <button class="category-pill" data-cat="cache">Cache & Redis</button>
+          <button class="category-pill" data-cat="env">Environment</button>
+          <button class="category-pill" data-cat="sec">Security</button>
+          <button class="category-pill" data-cat="di">Dependency Injection</button>
+        </div>
+
+        <div class="search-bar-wrap">
+          <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="rule-search-input" class="search-input" placeholder="Search rules (e.g. overlap, N+1, around, MariaDB, Redis)...">
+        </div>
+      </div>
+
+      <div id="rules-container" class="rules-grid">
+        <!-- Populated via app.js -->
+      </div>
+    </div>
+  </section>
+
+  <!-- Stack Compatibility Matrix -->
+  <section id="matrix" class="section">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">Support & Compatibility</span>
+        <h2 class="section-title">Certified Stack Compatibility Matrix</h2>
+        <p class="section-subtitle">
+          Magento Doctor actively checks your runtime against official Adobe Commerce and community Open Source system requirements.
+        </p>
+      </div>
+
+      <div class="matrix-card">
+        <table class="matrix-table">
+          <thead>
+            <tr>
+              <th>Magento Version</th>
+              <th>Supported PHP</th>
+              <th>Recommended</th>
+              <th>Databases (MySQL / MariaDB)</th>
+              <th>Search Engine</th>
+              <th>Cache & Session</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><b>2.4.9</b></td>
+              <td>
+                <span class="version-chip">8.3</span>
+                <span class="version-chip">8.4</span>
+                <span class="version-chip certified">8.5</span>
+              </td>
+              <td><span class="version-chip certified">8.4</span></td>
+              <td>
+                <span class="version-chip lts">MySQL 8.4 LTS</span>
+                <span class="version-chip">MySQL 9.x</span>
+                <span class="version-chip lts">MariaDB 11.4 LTS</span>
+                <span class="version-chip">MariaDB 11.x</span>
+              </td>
+              <td>
+                <span class="version-chip">OpenSearch 2.19</span>
+                <span class="version-chip certified">OpenSearch 3.0</span>
+              </td>
+              <td>
+                <span class="version-chip">Redis 7.2 / 8.0</span>
+                <span class="version-chip certified">Valkey 7.2 / 8.0</span>
+              </td>
+            </tr>
+            <tr>
+              <td><b>2.4.8</b></td>
+              <td>
+                <span class="version-chip">8.3</span>
+                <span class="version-chip">8.4</span>
+              </td>
+              <td><span class="version-chip certified">8.3</span></td>
+              <td>
+                <span class="version-chip lts">MySQL 8.4 LTS</span>
+                <span class="version-chip">MySQL 8.0</span>
+                <span class="version-chip lts">MariaDB 11.4 LTS</span>
+                <span class="version-chip">MariaDB 10.11</span>
+              </td>
+              <td>
+                <span class="version-chip">OpenSearch 2.19</span>
+                <span class="version-chip certified">OpenSearch 3.0</span>
+              </td>
+              <td>
+                <span class="version-chip">Redis 7.2 / 8.0</span>
+                <span class="version-chip certified">Valkey 7.2 / 8.0</span>
+              </td>
+            </tr>
+            <tr>
+              <td><b>2.4.7</b></td>
+              <td>
+                <span class="version-chip">8.2</span>
+                <span class="version-chip">8.3</span>
+              </td>
+              <td><span class="version-chip certified">8.3</span></td>
+              <td>
+                <span class="version-chip">MySQL 8.0</span>
+                <span class="version-chip">MariaDB 10.6</span>
+                <span class="version-chip lts">MariaDB 10.11</span>
+              </td>
+              <td>
+                <span class="version-chip">OpenSearch 2.12</span>
+                <span class="version-chip">OpenSearch 2.19</span>
+              </td>
+              <td>
+                <span class="version-chip">Redis 7.2</span>
+                <span class="version-chip">Valkey 7.2</span>
+              </td>
+            </tr>
+            <tr>
+              <td><b>2.4.6</b></td>
+              <td>
+                <span class="version-chip">8.1</span>
+                <span class="version-chip">8.2</span>
+              </td>
+              <td><span class="version-chip certified">8.2</span></td>
+              <td>
+                <span class="version-chip">MySQL 8.0</span>
+                <span class="version-chip">MariaDB 10.4 / 10.6</span>
+                <span class="version-chip lts">MariaDB 10.11</span>
+              </td>
+              <td>
+                <span class="version-chip">OpenSearch 2.5</span>
+                <span class="version-chip">OpenSearch 2.12</span>
+              </td>
+              <td><span class="version-chip">Redis 7.0</span></td>
+            </tr>
+            <tr>
+              <td><b>2.4.4 & 2.4.5</b></td>
+              <td>
+                <span class="version-chip">8.1</span>
+              </td>
+              <td><span class="version-chip certified">8.1</span></td>
+              <td>
+                <span class="version-chip">MySQL 8.0</span>
+                <span class="version-chip">MariaDB 10.4 / 10.6</span>
+              </td>
+              <td>
+                <span class="version-chip">OpenSearch 1.2</span>
+                <span class="version-chip">OpenSearch 2.5</span>
+              </td>
+              <td>
+                <span class="version-chip">Redis 6.2 / 7.0</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Security & Safety Guarantee -->
+  <section class="section" style="background: rgba(8, 12, 18, 0.6); border-top: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle);">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">Safety Blueprint</span>
+        <h2 class="section-title">Production Safe. Zero Telemetry. Air-Gapped.</h2>
+        <p class="section-subtitle">
+          Running diagnostic tools against enterprise e-commerce environments requires strict non-intrusive safety principles.
+        </p>
+      </div>
+
+      <div class="guarantee-grid">
+        <div class="guarantee-card">
+          <h4>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            Zero Secret Exposure
+          </h4>
+          <p>Passwords, crypt keys, Redis tokens, and API headers are never held as plain text in memory or stored in snapshots. The normalized model maps them strictly as <code>SecretValue::Present</code> or <code>SecretValue::Missing</code>.</p>
+        </div>
+
+        <div class="guarantee-card">
+          <h4>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            Safe Read-Only Operations
+          </h4>
+          <p>Default collectors execute strictly non-locking, read-only queries against <code>information_schema</code> with short execution timeouts (5s). Potentially heavy commands require explicit opt-in flags.</p>
+        </div>
+
+        <div class="guarantee-card">
+          <h4>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            100% Offline & Local
+          </h4>
+          <p>Zero phone-home telemetry. Zero external cloud dependencies. Zero AI API calls. All parsing and correlation occur locally on your machine in native compiled machine code.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Installation & Downloads -->
+  <section id="install" class="section">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">Quickstart</span>
+        <h2 class="section-title">Install Magento Doctor in Seconds</h2>
+        <p class="section-subtitle">
+          Standalone single-file binaries with zero external runtime dependencies. No PHP, Composer, or Node required to run.
+        </p>
+      </div>
+
+      <div class="install-tabs">
+        <button class="install-tab-btn active" data-os="linux">Linux (x86_64)</button>
+        <button class="install-tab-btn" data-os="musl">Linux (musl static)</button>
+        <button class="install-tab-btn" data-os="macos">macOS (Apple Silicon)</button>
+        <button class="install-tab-btn" data-os="windows">Windows (x64)</button>
+        <button class="install-tab-btn" data-os="cargo">Build from Source (Cargo)</button>
+      </div>
+
+      <div class="install-snippet-box">
+        <button class="btn-copy copy-float-btn" data-copy-target="install-code-box">Copy</button>
+        <pre><code id="install-code-box"># Loading commands...</code></pre>
+      </div>
+
+      <div style="text-align: center; margin-top: 28px;">
+        <a href="https://github.com/nemke82/magento-doctor/releases/tag/v2026.08.26" class="btn-primary" target="_blank" rel="noopener">
+          View All Release Assets & Checksums on GitHub
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <h3>Magento Doctor</h3>
+          <p style="max-width: 380px;">Deep diagnostics, static analysis, and performance forensics for Magento 2. Built in Rust with CalVer versioning.</p>
+        </div>
+
+        <div class="footer-links">
+          <div class="footer-col">
+            <h4>Forensics</h4>
+            <ul>
+              <li><a href="#philosophy">Architecture</a></li>
+              <li><a href="#simulator">Terminal Simulator</a></li>
+              <li><a href="#rules">Rule Catalog</a></li>
+              <li><a href="#matrix">Stack Compatibility</a></li>
+            </ul>
+          </div>
+          <div class="footer-col">
+            <h4>Project</h4>
+            <ul>
+              <li><a href="https://github.com/nemke82/magento-doctor" target="_blank" rel="noopener">GitHub Repository</a></li>
+              <li><a href="https://github.com/nemke82/magento-doctor/releases" target="_blank" rel="noopener">Releases & Binaries</a></li>
+              <li><a href="https://github.com/nemke82/magento-doctor/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <div>MIT License © 2026 nemke82 and Magento Doctor Contributors.</div>
+        <div style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-dim);">
+          Tagged release: v2026.08.26
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
