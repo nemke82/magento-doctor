@@ -32,19 +32,28 @@ pub async fn inspect_live_database(
     };
 
     // 1. Server version
-    if let Ok(version_rows) = conn.query_map("SELECT VERSION()", |v: String| v).await {
+    let query_timeout = Duration::from_secs(timeout_secs.clamp(1, 5));
+
+    if let Ok(Ok(version_rows)) = tokio::time::timeout(
+        query_timeout,
+        conn.query_map("SELECT VERSION()", |v: String| v),
+    )
+    .await
+    {
         if let Some(v) = version_rows.into_iter().next() {
             metrics.server_version = Some(v);
         }
     }
 
     // 2. Buffer pool size
-    if let Ok(var_rows) = conn
-        .query_map(
+    if let Ok(Ok(var_rows)) = tokio::time::timeout(
+        query_timeout,
+        conn.query_map(
             "SHOW VARIABLES LIKE 'innodb_buffer_pool_size'",
             |(_name, val): (String, String)| val,
-        )
-        .await
+        ),
+    )
+    .await
     {
         if let Some(val_str) = var_rows.into_iter().next() {
             if let Ok(bytes) = val_str.parse::<u64>() {
@@ -62,8 +71,9 @@ pub async fn inspect_live_database(
         LIMIT 50
     "#;
 
-    if let Ok(rows) = conn
-        .query_map(
+    if let Ok(Ok(rows)) = tokio::time::timeout(
+        query_timeout,
+        conn.query_map(
             table_query,
             |(name, rows, data_len, idx_len): (String, u64, u64, u64)| TableSizeStat {
                 table_name: name,
@@ -72,8 +82,9 @@ pub async fn inspect_live_database(
                 index_bytes: idx_len,
                 total_bytes: data_len + idx_len,
             },
-        )
-        .await
+        ),
+    )
+    .await
     {
         let total_bytes = rows.iter().map(|t| t.total_bytes).sum();
         metrics.total_data_and_index_bytes = Some(total_bytes);
@@ -88,11 +99,13 @@ pub async fn inspect_live_database(
     "#;
 
     let mut cron_summary = CronScheduleSummary::default();
-    if let Ok(status_counts) = conn
-        .query_map(cron_summary_query, |(status, count): (String, u64)| {
+    if let Ok(Ok(status_counts)) = tokio::time::timeout(
+        query_timeout,
+        conn.query_map(cron_summary_query, |(status, count): (String, u64)| {
             (status, count)
-        })
-        .await
+        }),
+    )
+    .await
     {
         for (status, count) in status_counts {
             cron_summary.total_rows += count;
@@ -116,14 +129,16 @@ pub async fn inspect_live_database(
         LIMIT 1
     "#;
 
-    if let Ok(oldest_rows) = conn
-        .query_map(
+    if let Ok(Ok(oldest_rows)) = tokio::time::timeout(
+        query_timeout,
+        conn.query_map(
             oldest_running_query,
             |(job_code, secs): (String, Option<i64>)| {
                 (job_code, secs.unwrap_or(0).max(0) as u64)
             },
-        )
-        .await
+        ),
+    )
+    .await
     {
         if let Some((job, secs)) = oldest_rows.into_iter().next() {
             cron_summary.oldest_running_job = Some(job);
@@ -133,6 +148,10 @@ pub async fn inspect_live_database(
 
     metrics.cron_schedule = cron_summary;
 
-    let _ = pool.disconnect().await;
+    // CRITICAL: Drop active connection back into pool before disconnecting!
+    // mysql_async::Pool::disconnect() waits indefinitely for active checked-out
+    // connections to be dropped, causing a deadlock if conn is still in scope.
+    drop(conn);
+    let _ = tokio::time::timeout(Duration::from_secs(1), pool.disconnect()).await;
     Ok(metrics)
 }

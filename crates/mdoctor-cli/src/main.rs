@@ -196,8 +196,12 @@ async fn build_installation_model(
             let parsed_env = mdoctor_magento::parse_env_php(&env_php_path);
             let raw_pass = parsed_env.raw_db_password.as_deref();
 
-            if let Ok(db_metrics) =
-                inspect_live_database(host, db, user, raw_pass, budget.max_db_seconds).await
+            let db_timeout = std::time::Duration::from_secs(budget.max_db_seconds.max(5) + 2);
+            if let Ok(Ok(db_metrics)) = tokio::time::timeout(
+                db_timeout,
+                inspect_live_database(host, db, user, raw_pass, budget.max_db_seconds),
+            )
+            .await
             {
                 installation.database_metrics = db_metrics;
             }
