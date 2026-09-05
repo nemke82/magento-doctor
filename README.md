@@ -277,10 +277,10 @@ mdoctor snapshot analyze customer_audit.mdoctor
 
 Magento Doctor ships with built-in version matrices and hot-path databases covering:
 - **Magento Open Source & Adobe Commerce**: `2.4.4`, `2.4.5`, `2.4.6`, `2.4.7`, `2.4.8`, and `2.4.9`
-- **PHP**: `8.1`, `8.2`, `8.3`, and `8.4`
-- **Database**: MariaDB `10.4`, `10.6`, `10.11` & MySQL `8.0`, `8.4`
-- **Search**: OpenSearch `1.2`, `2.5`, `2.12`, `2.19`
-- **Cache**: Redis / Valkey `6.2`, `7.0`, `7.2`
+- **PHP**: `8.1`, `8.2`, `8.3`, `8.4`, and `8.5`
+- **Database**: MariaDB `10.4`, `10.6`, `10.11`, `11.0`, `11.4` & MySQL `8.0`, `8.4`, `9.x`
+- **Search**: OpenSearch `1.2`, `2.5`, `2.12`, `2.19`, and `3.0`
+- **Cache**: Redis `6.2`, `7.0`, `7.2` & Valkey `8.0`
 
 ---
 
