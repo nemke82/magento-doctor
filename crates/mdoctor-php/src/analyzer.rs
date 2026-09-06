@@ -47,7 +47,11 @@ impl PhpAstAnalyzer {
     /// Analyze a PHP file on disk.
     pub fn analyze_file(&mut self, path: &Path) -> Result<Vec<AstFinding>, std::io::Error> {
         let content = std::fs::read_to_string(path)?;
-        Ok(self.analyze_source(&content))
+        let mut findings = self.analyze_source(&content);
+        for f in &mut findings {
+            f.file_path = Some(path.to_path_buf());
+        }
+        Ok(findings)
     }
 }
 
@@ -144,6 +148,7 @@ fn check_member_call(node: &Node, ctx: &TraversalContext, findings: &mut Vec<Ast
             operation: OperationType::RepositoryLoad,
             class_name: ctx.current_class.clone(),
             method_name: ctx.current_method.clone(),
+            file_path: None,
             call_signature: format!("{}->{}()", obj_text, method_name),
             in_loop: true,
             line_number,
@@ -157,6 +162,7 @@ fn check_member_call(node: &Node, ctx: &TraversalContext, findings: &mut Vec<Ast
             operation: OperationType::CollectionLoad,
             class_name: ctx.current_class.clone(),
             method_name: ctx.current_method.clone(),
+            file_path: None,
             call_signature: format!("{}->{}()", obj_text, method_name),
             in_loop: true,
             line_number,
@@ -170,6 +176,7 @@ fn check_member_call(node: &Node, ctx: &TraversalContext, findings: &mut Vec<Ast
             operation: OperationType::DatabaseWrite,
             class_name: ctx.current_class.clone(),
             method_name: ctx.current_method.clone(),
+            file_path: None,
             call_signature: format!("{}->{}()", obj_text, method_name),
             in_loop: true,
             line_number,
@@ -187,6 +194,7 @@ fn check_member_call(node: &Node, ctx: &TraversalContext, findings: &mut Vec<Ast
             operation: OperationType::HttpRequest,
             class_name: ctx.current_class.clone(),
             method_name: ctx.current_method.clone(),
+            file_path: None,
             call_signature: format!("{}->{}()", obj_text, method_name),
             in_loop,
             line_number,
@@ -203,6 +211,7 @@ fn check_member_call(node: &Node, ctx: &TraversalContext, findings: &mut Vec<Ast
             operation: OperationType::LoggingInLoop,
             class_name: ctx.current_class.clone(),
             method_name: ctx.current_method.clone(),
+            file_path: None,
             call_signature: format!("{}->{}()", obj_text, method_name),
             in_loop: true,
             line_number,
@@ -218,6 +227,7 @@ fn check_member_call(node: &Node, ctx: &TraversalContext, findings: &mut Vec<Ast
             operation: OperationType::DirectSqlQuery,
             class_name: ctx.current_class.clone(),
             method_name: ctx.current_method.clone(),
+            file_path: None,
             call_signature: format!("{}->{}()", obj_text, method_name),
             in_loop,
             line_number,
@@ -247,6 +257,7 @@ fn check_scoped_call(node: &Node, ctx: &TraversalContext, findings: &mut Vec<Ast
             operation: OperationType::ObjectManagerUsage,
             class_name: ctx.current_class.clone(),
             method_name: ctx.current_method.clone(),
+            file_path: None,
             call_signature: format!("{}::{}()", scope_text, method_name),
             in_loop: ctx.loop_depth > 0,
             line_number,
@@ -260,6 +271,7 @@ fn check_scoped_call(node: &Node, ctx: &TraversalContext, findings: &mut Vec<Ast
             operation: OperationType::SessionAccess,
             class_name: ctx.current_class.clone(),
             method_name: ctx.current_method.clone(),
+            file_path: None,
             call_signature: format!("{}::{}()", scope_text, method_name),
             in_loop: ctx.loop_depth > 0,
             line_number,
@@ -284,6 +296,7 @@ fn check_function_call(node: &Node, ctx: &TraversalContext, findings: &mut Vec<A
             operation: OperationType::HttpRequest,
             class_name: ctx.current_class.clone(),
             method_name: ctx.current_method.clone(),
+            file_path: None,
             call_signature: "curl_exec()".to_string(),
             in_loop: ctx.loop_depth > 0,
             line_number,
@@ -296,6 +309,7 @@ fn check_function_call(node: &Node, ctx: &TraversalContext, findings: &mut Vec<A
             operation: OperationType::HttpRequest,
             class_name: ctx.current_class.clone(),
             method_name: ctx.current_method.clone(),
+            file_path: None,
             call_signature: "file_get_contents(http...)".to_string(),
             in_loop: ctx.loop_depth > 0,
             line_number,

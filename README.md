@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://github.com/nemke82/magento-doctor/actions/workflows/ci.yml"><img src="https://github.com/nemke82/magento-doctor/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="https://nemke82.github.io/magento-doctor/"><img src="https://img.shields.io/badge/docs-interactive_site-00f0ff.svg" alt="Documentation" /></a>
-  <a href="https://github.com/nemke82/magento-doctor/releases"><img src="https://img.shields.io/badge/release-v2026.08.26-blue.svg" alt="Release" /></a>
+  <a href="https://github.com/nemke82/magento-doctor/releases"><img src="https://img.shields.io/badge/release-v2026.09.06-blue.svg" alt="Release" /></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT" /></a>
   <img src="https://img.shields.io/badge/Rust-1.75+-orange.svg" alt="Rust 1.75+" />
   <img src="https://img.shields.io/badge/Magento-2.4.4_--_2.4.9-orange.svg" alt="Magento 2.4.4 - 2.4.9" />
@@ -48,7 +48,7 @@ Every analyzer operates against a normalized internal representation of the stor
 ## Example Output
 
 ```text
-Magento Doctor v2026.08.26
+Magento Doctor v2026.09.06
 
 Magento Open Source 2.4.7-p3
 Mode: production
@@ -134,7 +134,7 @@ chmod +x /usr/local/bin/mdoctor
 Verify installation:
 ```bash
 mdoctor --version
-# Output: mdoctor v2026.08.26
+# Output: mdoctor v2026.09.06
 ```
 
 ### Option 2: Cargo Install

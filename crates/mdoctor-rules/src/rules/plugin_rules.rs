@@ -17,6 +17,11 @@ pub fn evaluate_plugin_rules(
             continue;
         }
 
+        // Skip core Magento plugins (vanilla framework plugins)
+        if plugin.module.starts_with("Magento_") || plugin.source_file.to_string_lossy().contains("/vendor/magento/") {
+            continue;
+        }
+
         if plugin.plugin_type == PluginType::Around {
             if let Some(weight) = is_hot_method(&plugin.target_class, None) {
                 // Find any AST findings in this plugin class
@@ -87,6 +92,12 @@ pub fn evaluate_plugin_rules(
 
     for ((target_class, sort_order), group) in target_plugins {
         if group.len() > 1 && sort_order > 0 {
+            // Only alert if at least one custom or third-party module is involved in the collision
+            let has_non_core = group.iter().any(|p| !p.module.starts_with("Magento_") && !p.source_file.to_string_lossy().contains("/vendor/magento/"));
+            if !has_non_core {
+                continue;
+            }
+
             let mut finding = Finding::new(
                 "MD-PLG-005",
                 format!("Plugin sortOrder conflict on '{}'", target_class),

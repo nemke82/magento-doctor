@@ -70,28 +70,72 @@ pub fn parse_env_php(env_file_path: &Path) -> ParsedEnv {
         }
     }
 
-    // 4. Redis session database
+    // Helper to extract host/server/path and port
+    fn extract_redis_host_port(slice: &str) -> Option<String> {
+        let host_re = Regex::new(r#"['"](?:host|server|path)['"]\s*=>\s*['"]([^'"]+)['"]"#).unwrap();
+        let port_re = Regex::new(r#"['"]port['"]\s*=>\s*['"]?([0-9]+)['"]?"#).unwrap();
+
+        let host = host_re.captures(slice).map(|c| c[1].to_string());
+        let port = port_re.captures(slice).map(|c| c[1].to_string());
+
+        match (host, port) {
+            (Some(h), Some(p)) => {
+                if h.starts_with('/') {
+                    Some(h)
+                } else if h.contains(':') {
+                    Some(h)
+                } else {
+                    Some(format!("{}:{}", h, p))
+                }
+            }
+            (Some(h), None) => Some(h),
+            (None, Some(p)) => Some(format!("127.0.0.1:{}", p)),
+            (None, None) => None,
+        }
+    }
+
+    // 4. Redis session database & host
     if let Some(session_pos) = content.find("'session'").or_else(|| content.find("\"session\"")) {
         let session_slice = &content[session_pos..];
-        // Stop before next top-level key or end
         let redis_session_db_re = Regex::new(r#"['"]database['"]\s*=>\s*['"]?([0-9]+)['"]?"#).unwrap();
         if let Some(caps) = redis_session_db_re.captures(session_slice) {
             parsed.config.redis_session_db = Some(caps[1].to_string());
         }
+        parsed.config.redis_session_host = extract_redis_host_port(session_slice);
     }
 
-    // 5. Redis cache & page cache database
+    // 5. Redis cache & page cache database & host
     if let Some(cache_pos) = content.find("'cache'").or_else(|| content.find("\"cache\"")) {
         let cache_slice = &content[cache_pos..];
 
-        let redis_cache_db_re = Regex::new(r#"['"]default['"]\s*=>\s*\[[\s\S]*?['"]database['"]\s*=>\s*['"]?([0-9]+)['"]?"#).unwrap();
-        if let Some(caps) = redis_cache_db_re.captures(cache_slice) {
-            parsed.config.redis_cache_db = Some(caps[1].to_string());
+        // Default cache
+        if let Some(def_match) = Regex::new(r#"['"]default['"]\s*=>\s*\[([\s\S]*?)(?:['"]page_cache['"]|\]\s*\])"#).unwrap().captures(cache_slice) {
+            let def_slice = &def_match[1];
+            let redis_cache_db_re = Regex::new(r#"['"]database['"]\s*=>\s*['"]?([0-9]+)['"]?"#).unwrap();
+            if let Some(caps) = redis_cache_db_re.captures(def_slice) {
+                parsed.config.redis_cache_db = Some(caps[1].to_string());
+            }
+            parsed.config.redis_cache_host = extract_redis_host_port(def_slice);
+        } else {
+            let redis_cache_db_re = Regex::new(r#"['"]default['"]\s*=>\s*\[[\s\S]*?['"]database['"]\s*=>\s*['"]?([0-9]+)['"]?"#).unwrap();
+            if let Some(caps) = redis_cache_db_re.captures(cache_slice) {
+                parsed.config.redis_cache_db = Some(caps[1].to_string());
+            }
         }
 
-        let redis_fpc_db_re = Regex::new(r#"['"]page_cache['"]\s*=>\s*\[[\s\S]*?['"]database['"]\s*=>\s*['"]?([0-9]+)['"]?"#).unwrap();
-        if let Some(caps) = redis_fpc_db_re.captures(cache_slice) {
-            parsed.config.redis_page_cache_db = Some(caps[1].to_string());
+        // Page cache
+        if let Some(fpc_match) = Regex::new(r#"['"]page_cache['"]\s*=>\s*\[([\s\S]*?)(?:\]\s*,\s*['"]|\]\s*\]\s*\])"#).unwrap().captures(cache_slice) {
+            let fpc_slice = &fpc_match[1];
+            let redis_fpc_db_re = Regex::new(r#"['"]database['"]\s*=>\s*['"]?([0-9]+)['"]?"#).unwrap();
+            if let Some(caps) = redis_fpc_db_re.captures(fpc_slice) {
+                parsed.config.redis_page_cache_db = Some(caps[1].to_string());
+            }
+            parsed.config.redis_page_cache_host = extract_redis_host_port(fpc_slice);
+        } else {
+            let redis_fpc_db_re = Regex::new(r#"['"]page_cache['"]\s*=>\s*\[[\s\S]*?['"]database['"]\s*=>\s*['"]?([0-9]+)['"]?"#).unwrap();
+            if let Some(caps) = redis_fpc_db_re.captures(cache_slice) {
+                parsed.config.redis_page_cache_db = Some(caps[1].to_string());
+            }
         }
     }
 

@@ -8,7 +8,7 @@ const TERMINAL_OUTPUTS = {
   scan: {
     command: "mdoctor scan --offline",
     output: `
-<span class="ansi-header">Magento Doctor v2026.08.26</span>
+<span class="ansi-header">Magento Doctor v2026.09.06</span>
 
 <span class="ansi-meta">Magento Open Source 2.4.7-p3 | Mode: production | PHP: 8.3.26
 Host: 127.0.0.1 | Modules: 312 enabled / 17 disabled | 3rd-Party: 84</span>
@@ -60,7 +60,7 @@ Host: 127.0.0.1 | Modules: 312 enabled / 17 disabled | 3rd-Party: 84</span>
   doctor: {
     command: "mdoctor doctor",
     output: `
-<span class="ansi-header">v2026.08.26 - Operational Health Check</span>
+<span class="ansi-header">v2026.09.06 - Operational Health Check</span>
 
 Overall Health: <span class="ansi-crit">71 / 100</span>
 <span class="ansi-crit">Critical: 3</span>  <span class="ansi-warn">Warning: 2</span>  <span class="ansi-info">5</span>

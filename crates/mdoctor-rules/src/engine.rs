@@ -64,7 +64,7 @@ fn scan_php_sources(installation: &MagentoInstallation) -> Vec<AstFinding> {
     // 1. app/code (all custom store modules)
     let app_code = installation.root.join("app/code");
     if app_code.exists() {
-        scan_dirs.push(app_code);
+        scan_dirs.push(app_code.clone());
     }
 
     // 2. Non-core vendor modules (skip generic vendor libraries like AWS SDK, Symfony, Doctrine, etc.)
@@ -79,7 +79,8 @@ fn scan_php_sources(installation: &MagentoInstallation) -> Vec<AstFinding> {
                 // Core framework code is verified by Adobe; skip brute-force traversal
             }
             _ => {
-                if module.path.exists() && !scan_dirs.contains(&module.path) {
+                let is_under_app_code = module.path.starts_with(&app_code);
+                if module.path.exists() && !is_under_app_code && !scan_dirs.contains(&module.path) {
                     scan_dirs.push(module.path.clone());
                 }
             }

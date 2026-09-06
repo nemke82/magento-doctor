@@ -20,6 +20,16 @@ pub fn evaluate_di_rules(
     }
 
     for (for_class, prefs) in pref_targets {
+        // Skip preferences declared by Magento Core modules (e.g. Magento_Csp replacing Magento_Deploy)
+        let custom_prefs: Vec<_> = prefs
+            .into_iter()
+            .filter(|p| !p.module.starts_with("Magento_") && !p.source_file.to_string_lossy().contains("/vendor/magento/"))
+            .collect();
+
+        if custom_prefs.is_empty() {
+            continue;
+        }
+
         let is_core_target = for_class.starts_with("Magento\\");
         let is_concrete = !for_class.ends_with("Interface") && !for_class.contains("\\Api\\");
 
@@ -37,21 +47,21 @@ pub fn evaluate_di_rules(
                 for_class
             );
 
-            for p in &prefs {
+            for p in &custom_prefs {
                 finding.evidence.push(format!(
                     "  - Replaced with '{}' by module '{}' ({}:{})",
                     p.type_class, p.module, p.source_file.display(), p.line
                 ));
             }
 
-            if prefs.len() > 1 {
+            if custom_prefs.len() > 1 {
                 finding.severity = Severity::Critical;
-                finding.evidence.push(format!("CRITICAL: Multiple modules ({}) replace the exact same target class!", prefs.len()));
+                finding.evidence.push(format!("CRITICAL: Multiple modules ({}) replace the exact same target class!", custom_prefs.len()));
             }
 
             finding.impact = "Replacing concrete classes breaks polymorphism, bypasses core bug fixes, and creates high risk of incompatibilities during Magento upgrades.".to_string();
             finding.recommendation = "Replace <preference> with plugins (before, around, after) or composition where possible.".to_string();
-            for p in &prefs {
+            for p in &custom_prefs {
                 finding.related_modules.push(p.module.clone());
                 finding.related_files.push(p.source_file.display().to_string());
             }
@@ -92,4 +102,44 @@ pub fn evaluate_di_rules(
     }
 
     findings
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+    use mdoctor_core::Preference;
+
+    #[test]
+    fn test_core_preferences_are_ignored() {
+        let mut installation = MagentoInstallation::new(PathBuf::from("/tmp"));
+        installation.preferences.push(Preference {
+            for_class: "Magento\\Deploy\\Package\\Processor\\PostProcessor\\Map".to_string(),
+            type_class: "Magento\\Csp\\Model\\Deploy\\Package\\Processor\\PostProcessor\\Map".to_string(),
+            module: "Magento_Csp".to_string(),
+            area: "global".to_string(),
+            source_file: PathBuf::from("vendor/magento/module-csp/etc/di.xml"),
+            line: 131,
+        });
+
+        let findings = evaluate_di_rules(&installation, &[]);
+        assert!(findings.is_empty(), "Core preferences must not trigger MD-DI-001");
+    }
+
+    #[test]
+    fn test_custom_module_preference_reported() {
+        let mut installation = MagentoInstallation::new(PathBuf::from("/tmp"));
+        installation.preferences.push(Preference {
+            for_class: "Magento\\Catalog\\Model\\Product".to_string(),
+            type_class: "Custom\\Catalog\\Model\\Product".to_string(),
+            module: "Custom_Catalog".to_string(),
+            area: "global".to_string(),
+            source_file: PathBuf::from("app/code/Custom/Catalog/etc/di.xml"),
+            line: 25,
+        });
+
+        let findings = evaluate_di_rules(&installation, &[]);
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].rule_id, "MD-DI-001");
+    }
 }

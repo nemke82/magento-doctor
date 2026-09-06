@@ -45,12 +45,12 @@ pub const RULE_EXPLANATIONS: &[RuleExplanation] = &[
     RuleExplanation {
         rule_id: "MD-PERF-021",
         title: "N+1 Repository Access in Collection Loop",
-        what: "A repository load (e.g. $productRepository->getById()) is executed inside a foreach/while loop over a collection.",
+        what: "A repository load (e.g. $categoryRepository->getById() or $productRepository->getById()) is executed inside a foreach/while loop over a collection or array.",
         why_affected: "Calling getById() inside a loop causes Magento to execute a fresh database query (and multiple EAV joins) for every single item in the collection. For 1,000 items, this triggers 1,000 distinct SQL queries instead of 1 batched query.",
-        detection_mechanism: "Tree-sitter PHP AST analysis walks the syntax tree, tracks loop depth, and flags member call expressions on repository instances within loop blocks.",
+        detection_mechanism: "Tree-sitter PHP AST analysis walks the syntax tree, tracks loop depth, captures exact file paths and line numbers, and flags member call expressions on repository instances within loop blocks.",
         false_positives: "Very low. In rare cases, a loop with a hardcoded limit of 1 or 2 iterations might trigger a warning.",
         verification: "Inspect the flagged source file and line number. Enable MySQL query logging or Magento DB profiler during that execution.",
-        remediation: "Add required attributes directly to the parent collection using ->addAttributeToSelect(), or use SearchCriteriaBuilder with an 'in' filter to load all required entities in one round-trip.",
+        remediation: "Refactor to batch-load entities before entering the loop:\n  1. Pre-collect entity IDs: $ids = array_unique(array_filter($itemIds));\n  2. Batch-load via CollectionFactory (->addAttributeToFilter('entity_id', ['in' => $ids])) or SearchCriteriaBuilder with 'in' filter.\n  3. Pre-map into an associative lookup array ($itemsById[$id] = $item) for O(1) in-memory resolution inside the loop.",
     },
     RuleExplanation {
         rule_id: "MD-DB-001",
@@ -65,12 +65,12 @@ pub const RULE_EXPLANATIONS: &[RuleExplanation] = &[
     RuleExplanation {
         rule_id: "MD-CACHE-001",
         title: "Redis Session and Cache Database Collision",
-        what: "Redis session storage and default application cache or full page cache are configured to use the exact same database number.",
-        why_affected: "In Redis, FLUSHDB flushes the entire numbered database. If sessions and cache share DB 0, running 'bin/magento cache:flush' immediately purges all customer sessions, logging out shoppers and abandoning active carts.",
-        detection_mechanism: "Inspects Redis database numbers configured under 'session' and 'cache' in app/etc/env.php.",
+        what: "Redis session storage and default application cache or full page cache are configured to use the exact same database number on the same Redis host/instance.",
+        why_affected: "In Redis, FLUSHDB flushes the entire numbered database. If sessions and cache share DB 0 on the same instance, running 'bin/magento cache:flush' immediately purges all customer sessions, logging out shoppers and abandoning active carts.",
+        detection_mechanism: "Inspects Redis database numbers and host/port endpoints configured under 'session' and 'cache' in app/etc/env.php. Separate Redis host instances using the same database number are verified and allowed.",
         false_positives: "None.",
         verification: "Inspect app/etc/env.php session and cache sections.",
-        remediation: "Assign distinct database numbers in app/etc/env.php: e.g. database 0 for default cache, database 1 for page_cache, database 2 for session.",
+        remediation: "Assign distinct database numbers in app/etc/env.php (e.g. DB 0 for default cache, DB 1 for page_cache, DB 2 for session) or point them to separate Redis instances/ports.",
     },
     RuleExplanation {
         rule_id: "MD-DB-004",

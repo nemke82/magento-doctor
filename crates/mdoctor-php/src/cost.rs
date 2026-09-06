@@ -44,6 +44,7 @@ pub struct AstFinding {
     pub operation: OperationType,
     pub class_name: Option<String>,
     pub method_name: Option<String>,
+    pub file_path: Option<std::path::PathBuf>,
     pub call_signature: String,
     pub in_loop: bool,
     pub line_number: usize,
