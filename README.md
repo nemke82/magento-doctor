@@ -178,8 +178,13 @@ MAGENTO_ROOT=/var/www/magento mdoctor scan
 |---|---|
 | `mdoctor scan` | Run full comprehensive scan across code, configuration, database schema, and cron |
 | `mdoctor doctor` | Fast operational health check highlighting critical blockages |
+| `mdoctor baseline create` | Export current store state as a baseline for drift comparison |
+| `mdoctor compare <baseline>` | Compare store against baseline to detect configuration drift and regressions |
 | `mdoctor modules` | Module inventory, classification, and integration footprint metrics |
+| `mdoctor modules --impact` | Rank installed extensions by architectural risk and performance impact |
 | `mdoctor module <Vendor_Module>` | Deep inspection of a specific module's plugins, observers, crons, and schema |
+| `mdoctor module <Name> --uninstall-impact` | Forensic blast-radius check for sequence breaks and orphaned DB tables |
+| `mdoctor module <Name> --graph mermaid` | Export visual architecture diagram in Mermaid.js flowchart syntax |
 | `mdoctor cron` | Cron forensics, schedule frequency, overlap risk, and backlog analysis |
 | `mdoctor indexers` | Indexer and MView changelog status, backlog, and schedule mode |
 | `mdoctor db` | Declarative schema reconciliation, missing/redundant indexes, table sizes |
@@ -187,6 +192,84 @@ MAGENTO_ROOT=/var/www/magento mdoctor scan
 | `mdoctor snapshot create` | Export sanitized store snapshot safe for sharing in GitHub issues |
 | `mdoctor snapshot analyze <file>` | Analyze an exported snapshot offline |
 | `mdoctor why slow` | Targeted bottleneck triage across database, cron, hot-path plugins, and Redis |
+
+---
+
+### Configuration Drift & Baseline Comparison
+
+Track store evolution, detect unauthorized configuration drift, and catch regressions before and after production deployments:
+
+```bash
+# 1. Create a baseline snapshot before deploying or upgrading
+mdoctor baseline create --output mdoctor-baseline.json
+
+# 2. Deploy your changes or update extensions...
+
+# 3. Compare current state against baseline
+mdoctor compare mdoctor-baseline.json
+
+# Exit code 2 is returned on critical regressions / severe health drop; exit code 0 on pass!
+```
+
+---
+
+### Extension Architectural Risk & Impact Scoring
+
+Rank extensions by runtime drag, checkout hot-path interception, around plugin stack depth, minutely crons, and AST cost indicators:
+
+```bash
+mdoctor modules --impact
+```
+
+---
+
+### Forensic Uninstall Blast-Radius Analysis
+
+Before disabling or removing an extension, check whether other active modules depend on it via `<sequence>`, and see which custom tables or columns will be orphaned:
+
+```bash
+mdoctor module Vendor_Feed --uninstall-impact
+```
+
+---
+
+### Architecture Diagram Export (Mermaid.js)
+
+Generate visual diagrams of any extension's touchpoints, plugins, observers, and tables directly into GitHub Markdown or Mermaid Live Editor:
+
+```bash
+mdoctor module Vendor_Feed --graph mermaid
+```
+
+---
+
+### GitHub Action & CI Integration
+
+Automate Magento health checks and pull request reviews using the official GitHub Action:
+
+```yaml
+name: Magento Doctor Audit
+
+on: [push, pull_request]
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: nemke82/magento-doctor@main
+        with:
+          command: scan
+          format: sarif
+          output-file: results.sarif
+          fail-on: critical
+
+      - name: Upload SARIF to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: results.sarif
+```
 
 ---
 

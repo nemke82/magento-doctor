@@ -197,6 +197,55 @@ Correlated Culprits (ranked by impact):
    • Cause: $productRepo->getById() invoked in loop across collection items.
    • Cost: 1,000 individual EAV round-trips over localhost MySQL socket.
 `
+  },
+  compare: {
+    command: "mdoctor compare mdoctor-baseline.json",
+    output: `
+<span class="ansi-header">=== MAGENTO DOCTOR CONFIGURATION DRIFT REPORT ===</span>
+
+Baseline: 2026-09-01 08:30:00 UTC  ->  Current: 2026-09-06 11:45:12 UTC
+Health Score: 85 -> 78 (<span class="ansi-crit">-7</span>)
+Findings Diff: Critical (+1)  Warning (+1)
+
+<span class="ansi-crit">⚠️  REGRESSIONS DETECTED SINCE BASELINE:</span>
+  + [<span class="ansi-crit">CRITICAL</span>] [<b>MD-PLG-001</b>] Around plugin on checkout hot path
+    Plugin 'vendor_checkout_wrap' intercepts QuoteManagement::submit using an around wrapper.
+    Fix: Refactor around plugin to 'before' or 'after' plugin, avoid synchronous network calls.
+
+<span class="ansi-success">🎉 RESOLVED ISSUES (FIXED SINCE BASELINE):</span>
+  - [MD-ENV-001] Unsupported PHP version for Magento release
+
+<span class="ansi-info">Module Changes:</span>
+┌────────────────────┬──────────┬─────────────────────────────┐
+│ Module             │ Change   │ Details                     │
+├────────────────────┼──────────┼─────────────────────────────┤
+│ Vendor_NewCheckout │ <span class="ansi-success">ADDED</span>    │                             │
+│ Vendor_OldBanner   │ <span class="ansi-crit">REMOVED</span>  │                             │
+│ Vendor_PaymentGate │ <span class="ansi-warn">MODIFIED</span> │ version: 1.0.2 -> 1.1.0     │
+└────────────────────┴──────────┴─────────────────────────────┘
+
+<span class="ansi-crit">VERDICT: FAIL - Regressions or significant health score drop detected.</span>
+`
+  },
+  impact: {
+    command: "mdoctor modules --impact",
+    output: `
+<span class="ansi-header">=== MODULE ARCHITECTURAL RISK & PERFORMANCE IMPACT RANKINGS ===</span>
+
+┌────────────────────┬─────────────────┬──────────────┬────────┬───────────────────────────────────┐
+│ Module             │ Classification  │ Impact Level │ Score  │ Primary Risk Drivers              │
+├────────────────────┼─────────────────┼──────────────┼────────┼───────────────────────────────────┤
+│ Vendor_Checkout    │ app/code custom │ <span class="ansi-crit">CRITICAL</span>     │ 78/100 │ 2 Around Plugins on Hotpath,      │
+│                    │                 │              │        │ 1 Minutely Cron, Direct SQL Query │
+│ Vendor_Feed        │ app/code custom │ <span class="ansi-warn">HIGH</span>         │ 53/100 │ N+1 Repository Load inside Loop,  │
+│                    │                 │              │        │ Synchronous HTTP Request          │
+│ Vendor_Payment     │ Composer pkg    │ <span class="ansi-warn">MEDIUM</span>       │ 36/100 │ Around plugin on QuoteManagement, │
+│                    │                 │              │        │ Synchronous HTTP Request          │
+│ Vendor_StoreLoc    │ Composer pkg    │ <span class="ansi-success">LOW</span>          │ 12/100 │ Declares custom DB table          │
+└────────────────────┴─────────────────┴──────────────┴────────┴───────────────────────────────────┘
+
+Evaluated 4 modules: 1 Critical, 1 High, 1 Medium, 1 Low impact.
+`
   }
 };
 

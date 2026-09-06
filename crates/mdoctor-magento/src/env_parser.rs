@@ -80,9 +80,7 @@ pub fn parse_env_php(env_file_path: &Path) -> ParsedEnv {
 
         match (host, port) {
             (Some(h), Some(p)) => {
-                if h.starts_with('/') {
-                    Some(h)
-                } else if h.contains(':') {
+                if h.starts_with('/') || h.contains(':') {
                     Some(h)
                 } else {
                     Some(format!("{}:{}", h, p))

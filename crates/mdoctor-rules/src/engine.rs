@@ -55,7 +55,7 @@ impl CrossAnalysisEngine {
 }
 
 /// Scans PHP files in app/code and relevant third-party modules.
-fn scan_php_sources(installation: &MagentoInstallation) -> Vec<AstFinding> {
+pub fn scan_php_sources(installation: &MagentoInstallation) -> Vec<AstFinding> {
     let mut findings = Vec::new();
     let mut analyzer = PhpAstAnalyzer::new();
 

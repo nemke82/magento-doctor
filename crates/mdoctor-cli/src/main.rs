@@ -8,15 +8,19 @@ use colored::*;
 use comfy_table::presets::UTF8_FULL;
 use comfy_table::{Cell, Color, ContentArrangement, Table};
 use mdoctor_core::{
-    DiagnosticSnapshot, HealthScore, MagentoInstallation, SafetyLevel, ScanBudget, Severity,
-    CALVER_VERSION,
+    calculate_uninstall_impact, compare_installations, DiagnosticSnapshot, HealthScore,
+    MagentoInstallation, SafetyLevel, ScanBudget, Severity, CALVER_VERSION,
 };
 use mdoctor_db::inspect_live_database;
 use mdoctor_magento::{collect_installation, discover_magento_root};
 use mdoctor_report::{
-    render_json_report, render_markdown_report, render_sarif_report, render_terminal_report,
+    render_drift_json, render_drift_markdown, render_drift_terminal, render_impact_table,
+    render_json_report, render_markdown_report, render_mermaid_graph, render_sarif_report,
+    render_terminal_report, render_uninstall_terminal,
 };
-use mdoctor_rules::{get_rule_explanation, CrossAnalysisEngine};
+use mdoctor_rules::{
+    calculate_all_modules_impact, get_rule_explanation, scan_php_sources, CrossAnalysisEngine,
+};
 
 #[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
 enum OutputFormat {
@@ -24,6 +28,11 @@ enum OutputFormat {
     Json,
     Markdown,
     Sarif,
+}
+
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+enum GraphFormat {
+    Mermaid,
 }
 
 #[derive(Parser)]
@@ -69,16 +78,46 @@ enum Commands {
     /// Run quick operational health check
     Doctor,
 
+    /// Compare current store state against a baseline snapshot to detect configuration drift
+    Compare {
+        #[arg(help = "Path to baseline snapshot (.json or .mdoctor)")]
+        baseline_file: PathBuf,
+
+        #[arg(short, long, value_enum, default_value = "text", help = "Report format")]
+        format: OutputFormat,
+    },
+
+    /// Manage baseline configuration snapshots for drift comparison
+    Baseline {
+        #[command(subcommand)]
+        action: BaselineAction,
+    },
+
+    /// Rank installed modules by performance impact and architectural risk
+    Impact {
+        #[arg(short, long, help = "Filter by vendor or module name")]
+        filter: Option<String>,
+    },
+
     /// List all installed modules with classification and footprint
     Modules {
         #[arg(short, long, help = "Filter by vendor or module name")]
         filter: Option<String>,
+
+        #[arg(long, help = "Rank modules by performance impact and architectural risk")]
+        impact: bool,
     },
 
     /// Deep inspection of a specific module's integration footprint
     Module {
         #[arg(help = "Module name (e.g. Vendor_Module or Magento_Catalog)")]
         name: String,
+
+        #[arg(long, help = "Perform forensic blast-radius analysis before uninstalling")]
+        uninstall_impact: bool,
+
+        #[arg(long, value_enum, help = "Generate visual architecture diagram")]
+        graph: Option<GraphFormat>,
     },
 
     /// Cron forensics, scheduling intervals, and overlap analysis
@@ -106,6 +145,23 @@ enum Commands {
     Why {
         #[arg(help = "Target issue (e.g. 'slow')")]
         target: Option<String>,
+    },
+}
+
+#[derive(Subcommand)]
+enum BaselineAction {
+    /// Create a baseline snapshot from the current store state
+    Create {
+        #[arg(short, long, help = "Output baseline path (default: mdoctor-baseline.json)")]
+        output: Option<PathBuf>,
+    },
+    /// Compare current store state against a baseline snapshot
+    Compare {
+        #[arg(help = "Path to baseline snapshot (.json or .mdoctor)")]
+        baseline_file: PathBuf,
+
+        #[arg(short, long, value_enum, default_value = "text", help = "Report format")]
+        format: OutputFormat,
     },
 }
 
@@ -145,6 +201,20 @@ async fn main() -> ExitCode {
             handle_explain(&rule_id);
             ExitCode::from(0)
         }
+        Commands::Baseline { action } => match action {
+            BaselineAction::Create { output } => {
+                handle_baseline_create(cli.root.as_deref(), output).await
+            }
+            BaselineAction::Compare { baseline_file, format } => {
+                handle_baseline_compare(cli.root.as_deref(), &baseline_file, format).await
+            }
+        },
+        Commands::Compare { baseline_file, format } => {
+            handle_baseline_compare(cli.root.as_deref(), &baseline_file, format).await
+        }
+        Commands::Impact { filter } => {
+            handle_modules_impact(cli.root.as_deref(), filter.as_deref()).await
+        }
         Commands::Snapshot { action } => match action {
             SnapshotAction::Create { output } => {
                 handle_snapshot_create(cli.root.as_deref(), output).await
@@ -158,8 +228,22 @@ async fn main() -> ExitCode {
             format,
         } => handle_scan(cli.root.as_deref(), offline, deep, budget, format).await,
         Commands::Doctor => handle_doctor(cli.root.as_deref()).await,
-        Commands::Modules { filter } => handle_modules(cli.root.as_deref(), filter.as_deref()).await,
-        Commands::Module { name } => handle_module(cli.root.as_deref(), &name).await,
+        Commands::Modules { filter, impact } => {
+            if impact {
+                handle_modules_impact(cli.root.as_deref(), filter.as_deref()).await
+            } else {
+                handle_modules(cli.root.as_deref(), filter.as_deref()).await
+            }
+        }
+        Commands::Module { name, uninstall_impact, graph } => {
+            if uninstall_impact {
+                handle_module_uninstall_impact(cli.root.as_deref(), &name).await
+            } else if let Some(g_fmt) = graph {
+                handle_module_graph(cli.root.as_deref(), &name, g_fmt).await
+            } else {
+                handle_module(cli.root.as_deref(), &name).await
+            }
+        }
         Commands::Cron => handle_cron(cli.root.as_deref()).await,
         Commands::Indexers => handle_indexers(cli.root.as_deref()).await,
         Commands::Db => handle_db(cli.root.as_deref()).await,
@@ -595,6 +679,168 @@ async fn handle_why(root_opt: Option<&Path>, _target: Option<&str>) -> ExitCode 
             println!("{}. {:<40} {} confidence", i + 1, f.title.bold(), format!("{}", f.confidence).yellow());
             println!("   Impact: {}", f.impact);
             println!("   Fix:    {}\n", f.recommendation.cyan());
+        }
+    }
+
+    ExitCode::from(0)
+}
+
+async fn handle_baseline_create(custom_root: Option<&Path>, output_path: Option<PathBuf>) -> ExitCode {
+    let target_file = output_path.unwrap_or_else(|| PathBuf::from("mdoctor-baseline.json"));
+    let installation = match build_installation_model(custom_root, false, false, 60).await {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!("{}: {}", "Error".red().bold(), e);
+            return ExitCode::from(3);
+        }
+    };
+
+    let findings = CrossAnalysisEngine::analyze(&installation);
+    let health = HealthScore::calculate(&findings);
+
+    let snapshot = DiagnosticSnapshot::new(installation, findings, health);
+    let json = match snapshot.to_json() {
+        Ok(j) => j,
+        Err(e) => {
+            eprintln!("{}: Failed to serialize baseline: {}", "Error".red().bold(), e);
+            return ExitCode::from(3);
+        }
+    };
+
+    if let Err(e) = std::fs::write(&target_file, json) {
+        eprintln!("{}: Failed to write baseline to '{}': {}", "Error".red().bold(), target_file.display(), e);
+        return ExitCode::from(3);
+    }
+
+    println!("\n{} Baseline snapshot saved safely to '{}'.", "✓".green().bold(), target_file.display().to_string().cyan());
+    println!("Store configuration, modules, and diagnostic findings were recorded for drift comparison.\n");
+    ExitCode::from(0)
+}
+
+async fn handle_baseline_compare(
+    custom_root: Option<&Path>,
+    baseline_file: &Path,
+    format: OutputFormat,
+) -> ExitCode {
+    let content = match std::fs::read_to_string(baseline_file) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("{}: Cannot read baseline file '{}': {}", "Error".red().bold(), baseline_file.display(), e);
+            return ExitCode::from(3);
+        }
+    };
+
+    let baseline = match DiagnosticSnapshot::from_json(&content) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("{}: Invalid baseline JSON in '{}': {}", "Error".red().bold(), baseline_file.display(), e);
+            return ExitCode::from(3);
+        }
+    };
+
+    let current_inst = match build_installation_model(custom_root, false, false, 60).await {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!("{}: {}", "Error".red().bold(), e);
+            return ExitCode::from(3);
+        }
+    };
+
+    let current_findings = CrossAnalysisEngine::analyze(&current_inst);
+    let current_health = HealthScore::calculate(&current_findings);
+    let current_snapshot = DiagnosticSnapshot::new(current_inst, current_findings, current_health);
+
+    let drift = compare_installations(&baseline, &current_snapshot);
+
+    let output = match format {
+        OutputFormat::Text => render_drift_terminal(&drift),
+        OutputFormat::Json => render_drift_json(&drift).unwrap_or_else(|e| format!("JSON error: {}", e)),
+        OutputFormat::Markdown => render_drift_markdown(&drift),
+        OutputFormat::Sarif => render_sarif_report(&drift.findings_drift.new_findings),
+    };
+
+    println!("{}", output);
+
+    if drift.has_regressions {
+        if drift.max_regression_severity == Some(Severity::Critical) {
+            ExitCode::from(2)
+        } else {
+            ExitCode::from(1)
+        }
+    } else {
+        ExitCode::from(0)
+    }
+}
+
+async fn handle_modules_impact(root_opt: Option<&Path>, filter: Option<&str>) -> ExitCode {
+    let installation = match build_installation_model(root_opt, true, false, 30).await {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!("{}: {}", "Error".red().bold(), e);
+            return ExitCode::from(3);
+        }
+    };
+
+    let ast_findings = scan_php_sources(&installation);
+    let mut impacts = calculate_all_modules_impact(&installation, &ast_findings);
+
+    if let Some(filt) = filter {
+        impacts.retain(|i| i.module_name.to_lowercase().contains(&filt.to_lowercase()));
+    }
+
+    let report = render_impact_table(&impacts);
+    println!("{}", report);
+    ExitCode::from(0)
+}
+
+async fn handle_module_uninstall_impact(root_opt: Option<&Path>, name: &str) -> ExitCode {
+    let installation = match build_installation_model(root_opt, true, false, 30).await {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!("{}: {}", "Error".red().bold(), e);
+            return ExitCode::from(3);
+        }
+    };
+
+    let analysis = match calculate_uninstall_impact(&installation, name) {
+        Some(a) => a,
+        None => {
+            eprintln!("{}: Module '{}' not found in this installation.", "Error".red().bold(), name);
+            return ExitCode::from(1);
+        }
+    };
+
+    let report = render_uninstall_terminal(&analysis);
+    println!("{}", report);
+
+    if analysis.safety == mdoctor_core::UninstallSafety::Blocked {
+        ExitCode::from(1)
+    } else {
+        ExitCode::from(0)
+    }
+}
+
+async fn handle_module_graph(root_opt: Option<&Path>, name: &str, format: GraphFormat) -> ExitCode {
+    let installation = match build_installation_model(root_opt, true, false, 30).await {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!("{}: {}", "Error".red().bold(), e);
+            return ExitCode::from(3);
+        }
+    };
+
+    let module = match installation.find_module(name) {
+        Some(m) => m,
+        None => {
+            eprintln!("{}: Module '{}' not found in this installation.", "Error".red().bold(), name);
+            return ExitCode::from(1);
+        }
+    };
+
+    match format {
+        GraphFormat::Mermaid => {
+            let diagram = render_mermaid_graph(module, &installation);
+            println!("{}", diagram);
         }
     }
 

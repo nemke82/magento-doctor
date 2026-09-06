@@ -60,4 +60,41 @@ fn test_fixture_scan_end_to_end() {
     let restored = DiagnosticSnapshot::from_json(&json).expect("Snapshot should deserialize cleanly");
     assert_eq!(restored.installation.version, Some("2.4.7-p3".to_string()));
     assert_eq!(restored.findings.len(), findings.len());
+
+    // 5. Test v0.2 Drift Comparison
+    let drift = mdoctor_core::compare_installations(&snapshot, &restored);
+    assert!(!drift.has_regressions);
+    assert_eq!(drift.health_drift.delta_overall, 0);
+    assert!(drift.findings_drift.new_findings.is_empty());
+    assert!(drift.modules_drift.is_empty());
+
+    // 6. Test v0.2 Module Impact Scoring
+    let ast_findings = mdoctor_rules::scan_php_sources(&installation);
+    let impacts = mdoctor_rules::calculate_all_modules_impact(&installation, &ast_findings);
+    assert_eq!(impacts.len(), 2, "Expected 2 custom/third-party modules scored");
+    let feed_impact = impacts.iter().find(|i| i.module_name == "Vendor_Feed").expect("Vendor_Feed impact");
+    assert_eq!(feed_impact.level, mdoctor_core::ImpactLevel::High);
+    assert!(feed_impact.score >= 50);
+
+    let payment_impact = impacts.iter().find(|i| i.module_name == "Vendor_Payment").expect("Vendor_Payment impact");
+    assert_eq!(payment_impact.level, mdoctor_core::ImpactLevel::Medium);
+    assert_eq!(payment_impact.hotpath_plugins_count, 1);
+
+    // 7. Test v0.2 Module Uninstall Impact Forensics
+    let feed_uninstall = mdoctor_core::calculate_uninstall_impact(&installation, "Vendor_Feed").expect("Vendor_Feed analysis");
+    assert_eq!(feed_uninstall.safety, mdoctor_core::UninstallSafety::Caution);
+    assert_eq!(feed_uninstall.orphaned_tables.len(), 1);
+    assert_eq!(feed_uninstall.orphaned_tables[0], "vendor_feed_queue");
+
+    let catalog_uninstall = mdoctor_core::calculate_uninstall_impact(&installation, "Magento_Catalog").expect("Magento_Catalog analysis");
+    assert_eq!(catalog_uninstall.safety, mdoctor_core::UninstallSafety::Blocked);
+    assert!(catalog_uninstall.dependents.iter().any(|d| d.name == "Vendor_Feed"));
+
+    // 8. Test v0.2 Mermaid Graph Generation
+    let graph = mdoctor_report::render_mermaid_graph(feed_module, &installation);
+    assert!(graph.contains("flowchart TD"));
+    assert!(graph.contains("Vendor_Feed"));
+    assert!(graph.contains("vendor_export_feed"));
+    assert!(graph.contains("vendor_feed_queue"));
 }
+

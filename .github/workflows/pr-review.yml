@@ -1,0 +1,36 @@
+name: Magento Doctor PR Review
+
+on:
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  diagnose:
+    name: Magento Doctor Scan & Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run Magento Doctor Diagnostic Scan
+        uses: ./
+        with:
+          command: scan
+          format: sarif
+          output-file: results.sarif
+          fail-on: none
+          magento-root: fixtures/magento-2.4.7
+
+      - name: Upload SARIF to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: results.sarif
+          category: magento-doctor

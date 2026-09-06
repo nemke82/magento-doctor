@@ -1,0 +1,88 @@
+name: 'Magento Doctor'
+description: 'Deep diagnostics, performance forensics, and configuration drift detection for Magento 2'
+author: 'nemke82'
+branding:
+  icon: 'activity'
+  color: 'red'
+
+inputs:
+  command:
+    description: 'Command to execute: "scan" or "compare"'
+    required: false
+    default: 'scan'
+  baseline:
+    description: 'Path to baseline .mdoctor or .json snapshot file (required for compare)'
+    required: false
+    default: ''
+  magento-root:
+    description: 'Path to Magento root directory'
+    required: false
+    default: '.'
+  format:
+    description: 'Report output format: text, json, markdown, sarif'
+    required: false
+    default: 'sarif'
+  fail-on:
+    description: 'Fail step on severity threshold: "critical", "warning", or "none"'
+    required: false
+    default: 'critical'
+  output-file:
+    description: 'Optional file path to save report output'
+    required: false
+    default: ''
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Run Magento Doctor
+      shell: bash
+      env:
+        INPUT_COMMAND: ${{ inputs.command }}
+        INPUT_BASELINE: ${{ inputs.baseline }}
+        INPUT_ROOT: ${{ inputs.magento-root }}
+        INPUT_FORMAT: ${{ inputs.format }}
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_OUTPUT: ${{ inputs.output-file }}
+      run: |
+        CMD_ARGS=()
+        if [ "$INPUT_COMMAND" = "compare" ]; then
+          if [ -z "$INPUT_BASELINE" ]; then
+            echo "::error::Baseline file path must be provided when running compare command"
+            exit 1
+          fi
+          CMD_ARGS+=("compare" "$INPUT_BASELINE" "--format" "$INPUT_FORMAT")
+        else
+          CMD_ARGS+=("scan" "--offline" "--format" "$INPUT_FORMAT")
+        fi
+
+        if [ -n "$INPUT_ROOT" ] && [ "$INPUT_ROOT" != "." ]; then
+          CMD_ARGS+=("--root" "$INPUT_ROOT")
+        fi
+
+        echo "Executing: mdoctor ${CMD_ARGS[*]}"
+
+        if command -v mdoctor &> /dev/null; then
+          MDOCTOR_BIN="mdoctor"
+        else
+          MDOCTOR_BIN="cargo run --release -p mdoctor-cli --"
+        fi
+
+        if [ -n "$INPUT_OUTPUT" ]; then
+          $MDOCTOR_BIN "${CMD_ARGS[@]}" > "$INPUT_OUTPUT"
+          EXIT_CODE=$?
+        else
+          $MDOCTOR_BIN "${CMD_ARGS[@]}"
+          EXIT_CODE=$?
+        fi
+
+        if [ "$INPUT_FAIL_ON" = "critical" ] && [ "$EXIT_CODE" -eq 2 ]; then
+          echo "::error::Magento Doctor identified critical issues or regressions!"
+          exit 2
+        elif [ "$INPUT_FAIL_ON" = "warning" ] && [ "$EXIT_CODE" -ge 1 ]; then
+          echo "::error::Magento Doctor identified warnings or regressions!"
+          exit 1
+        elif [ "$EXIT_CODE" -eq 3 ]; then
+          echo "::error::Magento Doctor encountered an execution error!"
+          exit 3
+        fi
+        exit 0
